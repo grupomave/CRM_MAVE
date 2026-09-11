@@ -15,16 +15,25 @@ interface RawDealRow {
   profiles: { full_name: string } | null;
 }
 
-export default async function PipelinePage() {
+export default async function PipelinePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ pipeline?: string }>;
+}) {
   const supabase = await createClient();
+  const { pipeline: requestedPipelineId } = await searchParams;
 
-  const { data: pipeline } = await supabase
+  const { data: pipelines } = await supabase
     .from("pipelines")
-    .select("id")
-    .eq("is_default", true)
-    .single();
+    .select("id, name, is_default")
+    .order("name");
 
-  const pipelineId = pipeline?.id;
+  const selectedPipeline =
+    (requestedPipelineId && pipelines?.find((p) => p.id === requestedPipelineId)) ||
+    pipelines?.find((p) => p.is_default) ||
+    pipelines?.[0];
+
+  const pipelineId = selectedPipeline?.id;
 
   const [stagesRes, dealsRes, profilesRes] = await Promise.all([
     pipelineId
@@ -85,6 +94,9 @@ export default async function PipelinePage() {
 
   return (
     <PipelineBoard
+      key={pipelineId ?? "none"}
+      pipelines={pipelines ?? []}
+      selectedPipelineId={pipelineId ?? null}
       stages={(stagesRes.data as PipelineStage[]) ?? []}
       initialDeals={deals}
       owners={owners}

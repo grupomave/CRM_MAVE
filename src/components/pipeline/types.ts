@@ -24,3 +24,9 @@ export interface OwnerOption {
   id: string;
   full_name: string;
 }
+
+export interface PipelineOption {
+  id: string;
+  name: string;
+  is_default: boolean;
+}

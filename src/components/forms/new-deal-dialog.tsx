@@ -41,12 +41,14 @@ interface Stage {
 
 export function NewDealDialog({
   trigger,
+  pipelineId,
   defaultStageId,
   onCreated,
   open: openProp,
   onOpenChange,
 }: {
   trigger?: React.ReactNode;
+  pipelineId?: string;
   defaultStageId?: string;
   onCreated?: () => void;
   open?: boolean;
@@ -73,20 +75,39 @@ export function NewDealDialog({
 
   useEffect(() => {
     if (!open) return;
-    supabase
-      .from("pipeline_stages")
-      .select("id, name, pipeline_id")
-      .order("order_index")
-      .then(({ data }) => {
-        if (data) {
-          setStages(data);
-          if (!watch("stage_id") && data[0]) {
-            setValue("stage_id", defaultStageId ?? data[0].id);
-          }
+
+    (async () => {
+      let effectivePipelineId = pipelineId;
+
+      if (!effectivePipelineId) {
+        const { data: defaultPipeline } = await supabase
+          .from("pipelines")
+          .select("id")
+          .eq("is_default", true)
+          .single();
+        effectivePipelineId = defaultPipeline?.id;
+      }
+
+      let query = supabase
+        .from("pipeline_stages")
+        .select("id, name, pipeline_id")
+        .order("order_index");
+
+      if (effectivePipelineId) {
+        query = query.eq("pipeline_id", effectivePipelineId);
+      }
+
+      const { data } = await query;
+
+      if (data) {
+        setStages(data);
+        if (!watch("stage_id") && data[0]) {
+          setValue("stage_id", defaultStageId ?? data[0].id);
         }
-      });
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, pipelineId]);
 
   async function onSubmit(values: FormValues) {
     setSubmitError(null);
@@ -133,7 +154,7 @@ export function NewDealDialog({
         <DialogHeader>
           <DialogTitle>Novo negócio</DialogTitle>
           <DialogDescription>
-            Cria um negócio no pipeline padrão.
+            Cria um negócio no funil selecionado.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">

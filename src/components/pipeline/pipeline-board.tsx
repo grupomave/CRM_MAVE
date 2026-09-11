@@ -14,11 +14,17 @@ import { NewDealDialog } from "@/components/forms/new-deal-dialog";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrencyBRL, cn } from "@/lib/utils";
 import { PipelineColumn } from "./pipeline-column";
+import { PipelineSwitcher } from "./pipeline-switcher";
 import {
   PipelineFilters,
   type PipelineFiltersState,
 } from "./pipeline-filters";
-import type { OwnerOption, PipelineDeal, PipelineStage } from "./types";
+import type {
+  OwnerOption,
+  PipelineDeal,
+  PipelineOption,
+  PipelineStage,
+} from "./types";
 
 type ViewMode = "kanban" | "list" | "forecast";
 
@@ -30,10 +36,14 @@ const DEFAULT_FILTERS: PipelineFiltersState = {
 };
 
 export function PipelineBoard({
+  pipelines,
+  selectedPipelineId,
   stages,
   initialDeals,
   owners,
 }: {
+  pipelines: PipelineOption[];
+  selectedPipelineId: string | null;
   stages: PipelineStage[];
   initialDeals: PipelineDeal[];
   owners: OwnerOption[];
@@ -135,6 +145,8 @@ export function PipelineBoard({
 
   return (
     <div className="flex h-full flex-col gap-4">
+      <PipelineSwitcher pipelines={pipelines} selectedPipelineId={selectedPipelineId} />
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-1 rounded-md bg-muted p-1">
           <ViewButton icon={KanbanSquare} active={view === "kanban"} onClick={() => setView("kanban")}>
@@ -157,6 +169,7 @@ export function PipelineBoard({
           />
           <NewDealDialog
             trigger={<Button>Novo negócio</Button>}
+            pipelineId={selectedPipelineId ?? undefined}
             defaultStageId={stages[0]?.id}
             onCreated={() => window.location.reload()}
           />
