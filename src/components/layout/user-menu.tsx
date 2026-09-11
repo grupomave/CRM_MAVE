@@ -1,0 +1,64 @@
+"use client";
+
+import Link from "next/link";
+import { LogOut, User as UserIcon } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ThemeToggleMenuItem } from "@/components/layout/theme-toggle";
+import { signOutAction } from "@/lib/actions/auth";
+import { initials } from "@/lib/utils";
+
+export function UserMenu({
+  fullName,
+  email,
+  avatarUrl,
+}: {
+  fullName: string;
+  email: string;
+  avatarUrl?: string | null;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <Avatar>
+          {avatarUrl && <AvatarImage src={avatarUrl} alt={fullName} />}
+          <AvatarFallback>{initials(fullName || email)}</AvatarFallback>
+        </Avatar>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>
+          <div className="flex flex-col">
+            <span className="font-medium text-foreground">{fullName}</span>
+            <span className="text-xs font-normal text-muted-foreground">
+              {email}
+            </span>
+          </div>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href="/settings/profile">
+            <UserIcon className="size-4" />
+            Perfil
+          </Link>
+        </DropdownMenuItem>
+        <ThemeToggleMenuItem />
+        <DropdownMenuSeparator />
+        <form action={signOutAction}>
+          <DropdownMenuItem asChild variant="destructive">
+            <button type="submit" className="w-full">
+              <LogOut className="size-4" />
+              Sair
+            </button>
+          </DropdownMenuItem>
+        </form>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}

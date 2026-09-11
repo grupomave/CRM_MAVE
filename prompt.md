@@ -17,7 +17,7 @@ Frontend: Next.js 14+ (App Router) + React + TypeScript + Tailwind CSS
 Componentes: shadcn/ui como base, customizado com o design system do Grupo Mave (seção 5)
 Backend / Banco de dados: Supabase (Postgres + Auth + Row Level Security + Storage + Realtime)
 Hospedagem: Vercel (deploy contínuo via Git)
-Autenticação: Supabase Auth (e-mail/senha + opção de login corporativo via Microsoft 365, já que o Grupo Mave usa M365)
+Autenticação: Supabase Auth, somente e-mail/senha — sem SSO (usuários criados via convite de admin, não há cadastro público)
 Drag-and-drop do Kanban: @dnd-kit ou react-beautiful-dnd
 Gráficos/relatórios: recharts
 Formulários: react-hook-form + zod
@@ -173,9 +173,8 @@ Cor secundária (--brand-secondary, amarelo) usar apenas como destaque pontual (
 Favicon e título da aba do navegador com o nome "Grupo Mave CRM"
 Tela de login com o logo centralizado sobre a cor de fundo institucional
 6. Autenticação e permissões
-Login via Supabase Auth (e-mail corporativo @grupomave.com.br)
-Cadastro fechado: não há tela pública de signup — apenas admin convida novos usuários (Supabase Auth admin invite / magic link), já criando o registro correspondente em profiles
-Login corporativo via M365 requer pré-requisito externo ao código: registro do app no Azure AD (client ID, client secret, tenant ID) configurado antes de habilitar o provider "azure" no Supabase Auth — sem isso, implementar apenas o botão desabilitado/placeholder
+Login via Supabase Auth, somente e-mail/senha (e-mail corporativo @grupomave.com.br) — sem SSO/login social
+Cadastro fechado: não há tela pública de signup — apenas admin convida novos usuários (Supabase Auth admin invite), já criando o registro correspondente em profiles
 Papéis: admin, gestor, vendedor
 admin: acesso total, configura pipelines e automações
 gestor: vê negócios da própria equipe, gera relatórios

@@ -1,0 +1,82 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* Ativa a variante `dark:` quando <html data-theme="dark">, controlado
+   pelo toggle de tema no menu do avatar (seção 3.2 do prompt.md) */
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  /* Identidade Grupo Mave (seção 5 do prompt.md) */
+  --color-brand-primary: #255474;
+  --color-brand-primary-hover: #1e455f;
+  --color-brand-secondary: #f3d929;
+  --color-brand-accent: #0492d5;
+  --color-brand-success: #1fb37a;
+  --color-brand-danger: #e5484d;
+  --color-brand-neutral-bg: #f7f8fa;
+  --color-brand-sidebar-bg: #ffffff;
+  --color-brand-text: #1c1f23;
+
+  /* Tokens semânticos (usados pelos componentes de UI) */
+  --color-background: var(--color-brand-neutral-bg);
+  --color-foreground: var(--color-brand-text);
+  --color-card: #ffffff;
+  --color-card-foreground: var(--color-brand-text);
+  --color-primary: var(--color-brand-primary);
+  --color-primary-hover: var(--color-brand-primary-hover);
+  --color-primary-foreground: #ffffff;
+  --color-secondary: var(--color-brand-secondary);
+  --color-secondary-foreground: var(--color-brand-text);
+  --color-muted: #eef0f3;
+  --color-muted-foreground: #6b7280;
+  --color-accent: var(--color-brand-accent);
+  --color-accent-foreground: #ffffff;
+  --color-destructive: var(--color-brand-danger);
+  --color-destructive-foreground: #ffffff;
+  --color-success: var(--color-brand-success);
+  --color-success-foreground: #ffffff;
+  --color-border: #e2e5ea;
+  --color-input: #e2e5ea;
+  --color-ring: var(--color-brand-primary);
+  --color-sidebar: var(--color-brand-sidebar-bg);
+  --color-sidebar-foreground: var(--color-brand-text);
+  --color-sidebar-active: #eaf1f5;
+
+  --radius-lg: 0.625rem;
+  --radius-md: calc(var(--radius-lg) - 2px);
+  --radius-sm: calc(var(--radius-lg) - 4px);
+}
+
+[data-theme="dark"] {
+  --color-brand-primary: #4a8cb0;
+  --color-brand-primary-hover: #5fa0c4;
+  --color-brand-accent: #4fb4e8;
+  --color-brand-success: #2ecc8f;
+  --color-brand-danger: #f0616a;
+  --color-brand-neutral-bg: #12161c;
+  --color-brand-sidebar-bg: #1a1f27;
+  --color-brand-text: #e8eaed;
+
+  --color-background: var(--color-brand-neutral-bg);
+  --color-foreground: var(--color-brand-text);
+  --color-card: #1a1f27;
+  --color-card-foreground: var(--color-brand-text);
+  --color-muted: #232a35;
+  --color-muted-foreground: #9aa4b2;
+  --color-border: #2a323e;
+  --color-input: #2a323e;
+  --color-sidebar-active: #22303a;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+  }
+}
