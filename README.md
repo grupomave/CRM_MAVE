@@ -32,11 +32,17 @@ relatórios), com identidade visual própria. Especificação completa em
 3. **Cadastro de usuários**: não há tela pública de signup — login é
    somente e-mail/senha, sem SSO. Convide usuários
    pelo painel do Supabase (Authentication > Users > Invite) — um `profile`
-   é criado automaticamente (papel padrão `vendedor`). Promova o primeiro
-   usuário a `admin` rodando no SQL Editor:
+   é criado automaticamente (papel padrão `vendedor`). Promova o **primeiro**
+   usuário a `admin` rodando no SQL Editor (precisa desabilitar o gatilho
+   `profiles_prevent_self_role_escalation` só para esta query, porque o SQL
+   Editor roda sem sessão de usuário — `auth.uid()` fica nulo, então nem
+   "admin" passaria na checagem; depois de existir o primeiro admin, ele
+   promove os demais normalmente pela tela de Configurações do app):
 
    ```sql
+   alter table profiles disable trigger profiles_prevent_self_role_escalation;
    update profiles set role = 'admin' where id = '<uuid-do-usuário>';
+   alter table profiles enable trigger profiles_prevent_self_role_escalation;
    ```
 
 5. Rodar `select public.run_activity_overdue_check();` periodicamente para a
