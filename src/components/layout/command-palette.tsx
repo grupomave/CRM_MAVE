@@ -128,6 +128,7 @@ export function CommandPalette() {
                 {NAV_ITEMS.map((item) => (
                   <Command.Item
                     key={item.href}
+                    value={item.label}
                     onSelect={() => go(item.href)}
                     className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-foreground data-[selected=true]:bg-muted"
                   >
@@ -142,6 +143,7 @@ export function CommandPalette() {
                   {visibleResults.map((r) => (
                     <Command.Item
                       key={`${r.group}-${r.id}`}
+                      value={r.label}
                       onSelect={() => go(r.href)}
                       className="flex cursor-pointer items-center justify-between rounded-sm px-2 py-1.5 text-sm text-foreground data-[selected=true]:bg-muted"
                     >

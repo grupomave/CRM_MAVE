@@ -27,11 +27,18 @@ import type { TriggerEvent } from "@/lib/supabase/types";
 interface Stage {
   id: string;
   name: string;
+  pipeline_id: string;
+}
+
+interface Pipeline {
+  id: string;
+  name: string;
 }
 
 export function AutomationsToolbar() {
   const [open, setOpen] = useState(false);
   const [stages, setStages] = useState<Stage[]>([]);
+  const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [triggerEvent, setTriggerEvent] = useState<TriggerEvent>("deal_stage_changed");
   const [toStageId, setToStageId] = useState("");
   const [actionType, setActionType] = useState<"create_activity" | "notify_user">(
@@ -46,11 +53,17 @@ export function AutomationsToolbar() {
     if (!open) return;
     supabase
       .from("pipeline_stages")
-      .select("id, name")
+      .select("id, name, pipeline_id")
       .order("order_index")
       .then(({ data }) => data && setStages(data));
+    supabase
+      .from("pipelines")
+      .select("id, name")
+      .then(({ data }) => data && setPipelines(data));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  const pipelineNameById = Object.fromEntries(pipelines.map((p) => [p.id, p.name]));
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -120,7 +133,7 @@ export function AutomationsToolbar() {
                 <SelectContent>
                   {stages.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
-                      {s.name}
+                      {pipelineNameById[s.pipeline_id] ?? "Funil"} — {s.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
