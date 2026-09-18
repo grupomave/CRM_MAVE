@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Paperclip, Download } from "lucide-react";
+import { Paperclip, Download, Upload } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -141,7 +141,22 @@ export function EntityFilesTab({
             onChange={(e) => setExpiresAt(e.target.value)}
           />
         </div>
-        <input ref={inputRef} type="file" onChange={onFileChange} disabled={uploading} />
+        <input
+          ref={inputRef}
+          type="file"
+          onChange={onFileChange}
+          disabled={uploading}
+          className="hidden"
+        />
+        <Button
+          type="button"
+          variant="outline"
+          disabled={uploading}
+          onClick={() => inputRef.current?.click()}
+        >
+          <Upload className="size-4" />
+          {uploading ? "Enviando..." : "Anexar arquivo"}
+        </Button>
       </div>
       {uploadError && <p className="text-sm text-destructive">{uploadError}</p>}
       <div className="flex flex-col gap-2">
