@@ -115,7 +115,17 @@ export function NewOrganizationDialog({
         <DialogHeader>
           <DialogTitle>Nova organização</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+        <form
+          onSubmit={(e) => {
+            // O DialogContent do Radix é portalizado para fora do form pai no
+            // DOM, mas o React ainda propaga o evento pela árvore de
+            // componentes — sem isso, este submit também disparava o submit
+            // do formulário pai (ex.: "Novo negócio") antes deste terminar.
+            e.stopPropagation();
+            handleSubmit(onSubmit)(e);
+          }}
+          className="flex flex-col gap-4"
+        >
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="name">Nome fantasia</Label>
             <Input id="name" {...register("name")} autoFocus />
