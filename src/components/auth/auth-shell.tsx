@@ -50,7 +50,7 @@ export function AuthShell({
         <div className="absolute top-1/3 -left-24 h-72 w-72 rounded-full bg-brand-accent/25 blur-3xl" />
 
         <div className="relative z-10 flex h-full flex-col justify-between px-12 py-14 xl:px-16">
-          <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-4">
             <Image
               src="/logo-brasao.png"
               alt="Grupo Mave"
@@ -60,7 +60,7 @@ export function AuthShell({
               priority
             />
             <div>
-              <p className="text-lg font-semibold tracking-tight text-white">
+              <p className="text-xl font-semibold tracking-tight text-white">
                 Grupo Mave
               </p>
               <p className="text-sm text-white/70">Segurança e Serviços</p>
