@@ -38,7 +38,7 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-4">
+    <form onSubmit={onSubmit} className="flex flex-col gap-5">
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="email">E-mail corporativo</Label>
         <Input
@@ -47,6 +47,7 @@ export function LoginForm() {
           placeholder="voce@grupomave.com.br"
           autoComplete="email"
           required
+          className="h-10"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
@@ -67,6 +68,7 @@ export function LoginForm() {
           type="password"
           autoComplete="current-password"
           required
+          className="h-10"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
@@ -74,7 +76,7 @@ export function LoginForm() {
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
-      <Button type="submit" disabled={loading} className="mt-2">
+      <Button type="submit" size="lg" disabled={loading} className="mt-1">
         {loading ? "Entrando..." : "Entrar"}
       </Button>
     </form>

@@ -54,7 +54,7 @@ export function ChangePasswordForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-4">
+    <form onSubmit={onSubmit} className="flex flex-col gap-5">
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="password">Nova senha</Label>
         <Input
@@ -62,6 +62,7 @@ export function ChangePasswordForm() {
           type="password"
           autoComplete="new-password"
           required
+          className="h-10"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
@@ -74,6 +75,7 @@ export function ChangePasswordForm() {
           type="password"
           autoComplete="new-password"
           required
+          className="h-10"
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
         />
@@ -81,7 +83,7 @@ export function ChangePasswordForm() {
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
-      <Button type="submit" disabled={loading} className="mt-2">
+      <Button type="submit" size="lg" disabled={loading} className="mt-1">
         {loading ? "Salvando..." : "Trocar senha e continuar"}
       </Button>
     </form>

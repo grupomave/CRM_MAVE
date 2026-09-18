@@ -42,7 +42,7 @@ export function ForgotPasswordForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-4">
+    <form onSubmit={onSubmit} className="flex flex-col gap-5">
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="email">E-mail corporativo</Label>
         <Input
@@ -51,12 +51,13 @@ export function ForgotPasswordForm() {
           placeholder="voce@grupomave.com.br"
           autoComplete="email"
           required
+          className="h-10"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
       </div>
 
-      <Button type="submit" disabled={loading} className="mt-2">
+      <Button type="submit" size="lg" disabled={loading} className="mt-1">
         {loading ? "Enviando..." : "Enviar link de redefinição"}
       </Button>
 
