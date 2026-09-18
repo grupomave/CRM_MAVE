@@ -8,6 +8,13 @@ const PUBLIC_PATHS = [
   "/forgot-password",
 ];
 
+// Evita reconsultar `profiles.must_change_password` a cada navegação: o
+// resultado "false" fica em cookie por alguns minutos. Se um admin forçar
+// troca de senha nesse intervalo, o usuário só é barrado após o cookie
+// expirar (atraso máximo de MUST_CHANGE_PASSWORD_CACHE_SECONDS).
+const MUST_CHANGE_PASSWORD_CACHE_COOKIE = "mcp_ok";
+const MUST_CHANGE_PASSWORD_CACHE_SECONDS = 300;
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -53,16 +60,34 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (user && request.nextUrl.pathname !== "/change-password") {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("must_change_password")
-      .eq("id", user.id)
-      .single();
+    const cachedOk =
+      request.cookies.get(MUST_CHANGE_PASSWORD_CACHE_COOKIE)?.value ===
+      user.id;
 
-    if (profile?.must_change_password) {
-      const changePasswordUrl = request.nextUrl.clone();
-      changePasswordUrl.pathname = "/change-password";
-      return NextResponse.redirect(changePasswordUrl);
+    if (!cachedOk) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("must_change_password")
+        .eq("id", user.id)
+        .single();
+
+      if (profile?.must_change_password) {
+        const changePasswordUrl = request.nextUrl.clone();
+        changePasswordUrl.pathname = "/change-password";
+        return NextResponse.redirect(changePasswordUrl);
+      }
+
+      supabaseResponse.cookies.set(
+        MUST_CHANGE_PASSWORD_CACHE_COOKIE,
+        user.id,
+        {
+          httpOnly: true,
+          secure: true,
+          sameSite: "lax",
+          maxAge: MUST_CHANGE_PASSWORD_CACHE_SECONDS,
+          path: "/",
+        },
+      );
     }
   }
 
