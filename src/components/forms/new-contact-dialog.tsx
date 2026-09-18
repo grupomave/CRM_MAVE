@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
+import { maskPhoneBR } from "@/lib/utils";
 
 const schema = z.object({
   name: z.string().min(1, "Informe o nome"),
@@ -48,6 +49,8 @@ export function NewContactDialog({
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
@@ -120,7 +123,13 @@ export function NewContactDialog({
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="phone">Telefone</Label>
-            <Input id="phone" {...register("phone")} />
+            <Input
+              id="phone"
+              {...register("phone")}
+              value={watch("phone") ?? ""}
+              onChange={(e) => setValue("phone", maskPhoneBR(e.target.value))}
+              placeholder="(00) 00000-0000"
+            />
           </div>
           {submitError && (
             <p className="text-sm text-destructive">{submitError}</p>

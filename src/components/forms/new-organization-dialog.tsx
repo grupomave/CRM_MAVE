@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createClient } from "@/lib/supabase/client";
+import { maskCNPJ, maskPhoneBR } from "@/lib/utils";
 
 const schema = z.object({
   name: z.string().min(1, "Informe o nome"),
@@ -141,7 +142,13 @@ export function NewOrganizationDialog({
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="cnpj">CNPJ</Label>
-              <Input id="cnpj" {...register("cnpj")} />
+              <Input
+                id="cnpj"
+                {...register("cnpj")}
+                value={watch("cnpj") ?? ""}
+                onChange={(e) => setValue("cnpj", maskCNPJ(e.target.value))}
+                placeholder="00.000.000/0000-00"
+              />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="sector">Setor</Label>
@@ -171,7 +178,13 @@ export function NewOrganizationDialog({
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="phone">Telefone</Label>
-              <Input id="phone" {...register("phone")} />
+              <Input
+                id="phone"
+                {...register("phone")}
+                value={watch("phone") ?? ""}
+                onChange={(e) => setValue("phone", maskPhoneBR(e.target.value))}
+                placeholder="(00) 00000-0000"
+              />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="city">Cidade</Label>

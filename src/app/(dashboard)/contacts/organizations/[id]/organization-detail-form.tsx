@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { createClient } from "@/lib/supabase/client";
 import { WhatsAppButton } from "@/components/whatsapp-button";
+import { maskCNPJ, maskPhoneBR } from "@/lib/utils";
 
 interface Organization {
   id: string;
@@ -94,7 +95,11 @@ export function OrganizationDetailForm({
             />
           </Field>
           <Field label="CNPJ">
-            <Input value={form.cnpj ?? ""} onChange={(e) => set("cnpj", e.target.value || null)} />
+            <Input
+              value={maskCNPJ(form.cnpj ?? "")}
+              onChange={(e) => set("cnpj", maskCNPJ(e.target.value) || null)}
+              placeholder="00.000.000/0000-00"
+            />
           </Field>
           <Field label="Setor">
             <Input
@@ -125,7 +130,11 @@ export function OrganizationDetailForm({
           </Field>
           <Field label="Telefone">
             <div className="flex gap-1">
-              <Input value={form.phone ?? ""} onChange={(e) => set("phone", e.target.value || null)} />
+              <Input
+                value={maskPhoneBR(form.phone ?? "")}
+                onChange={(e) => set("phone", maskPhoneBR(e.target.value) || null)}
+                placeholder="(00) 00000-0000"
+              />
               <WhatsAppButton phone={form.phone} />
             </div>
           </Field>
