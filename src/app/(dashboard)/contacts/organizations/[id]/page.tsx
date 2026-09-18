@@ -29,6 +29,16 @@ export default async function OrganizationDetailPage({
 
   if (!organization) notFound();
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: myProfile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user?.id ?? "")
+    .single();
+  const canDelete = myProfile?.role === "admin" || myProfile?.role === "gestor";
+
   const [contactsRes, dealsRes, attachmentsRes] = await Promise.all([
     supabase
       .from("contacts")
@@ -55,7 +65,7 @@ export default async function OrganizationDetailPage({
         <p className="text-sm text-muted-foreground">Organização</p>
       </div>
 
-      <OrganizationDetailForm organization={organization as any} />
+      <OrganizationDetailForm organization={organization as any} canDelete={canDelete} />
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Card>

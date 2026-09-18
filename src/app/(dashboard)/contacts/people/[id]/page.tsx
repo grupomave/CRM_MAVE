@@ -30,6 +30,16 @@ export default async function ContactDetailPage({
 
   if (!contact) notFound();
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: myProfile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user?.id ?? "")
+    .single();
+  const canDelete = myProfile?.role === "admin" || myProfile?.role === "gestor";
+
   const [organizations, dealsRes, attachmentsRes] = await Promise.all([
     fetchAllRows((from, to) =>
       supabase.from("organizations").select("id, name").order("name").range(from, to),
@@ -57,6 +67,7 @@ export default async function ContactDetailPage({
       <ContactDetailForm
         contact={contact as any}
         organizations={organizations}
+        canDelete={canDelete}
       />
 
       <Card>

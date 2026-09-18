@@ -153,6 +153,18 @@ export function DealDetailTabs({
     router.refresh();
   }
 
+  async function onDeleteDeal() {
+    if (
+      !window.confirm(
+        "Excluir este negócio? Atividades, notas, propostas e histórico vinculados também serão excluídos. Essa ação não pode ser desfeita.",
+      )
+    )
+      return;
+    await supabase.from("deals").delete().eq("id", deal.id);
+    router.push("/pipeline");
+    router.refresh();
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -215,23 +227,30 @@ export function DealDetailTabs({
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <DealActions deal={deal} onChanged={() => router.refresh()} />
-        <DealReportButton
-          data={{
-            deal: {
-              title: deal.title,
-              value: deal.value,
-              status: deal.status,
-              expected_close_date: deal.expected_close_date,
-              source: deal.source,
-              lost_reason: deal.lost_reason,
-              organizations: deal.organizations,
-              contacts: deal.contacts,
-              profiles: deal.profiles,
-            },
-            activities,
-            attachments,
-          }}
-        />
+        <div className="flex items-center gap-2">
+          <DealReportButton
+            data={{
+              deal: {
+                title: deal.title,
+                value: deal.value,
+                status: deal.status,
+                expected_close_date: deal.expected_close_date,
+                source: deal.source,
+                lost_reason: deal.lost_reason,
+                organizations: deal.organizations,
+                contacts: deal.contacts,
+                profiles: deal.profiles,
+              },
+              activities,
+              attachments,
+            }}
+          />
+          {canEditOwner && (
+            <Button variant="destructive" onClick={onDeleteDeal}>
+              Excluir negócio
+            </Button>
+          )}
+        </div>
       </div>
 
       <Tabs defaultValue="overview">

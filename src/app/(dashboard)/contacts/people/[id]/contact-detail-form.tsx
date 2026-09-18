@@ -35,9 +35,11 @@ interface OrganizationOption {
 export function ContactDetailForm({
   contact,
   organizations,
+  canDelete,
 }: {
   contact: Contact;
   organizations: OrganizationOption[];
+  canDelete: boolean;
 }) {
   const [form, setForm] = useState(contact);
   const [saving, setSaving] = useState(false);
@@ -143,9 +145,11 @@ export function ContactDetailForm({
             {saving ? "Salvando..." : "Salvar alterações"}
           </Button>
           {saved && <span className="text-sm text-success">Salvo!</span>}
-          <Button variant="destructive" onClick={onDelete} className="ml-auto">
-            Excluir contato
-          </Button>
+          {canDelete && (
+            <Button variant="destructive" onClick={onDelete} className="ml-auto">
+              Excluir contato
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>

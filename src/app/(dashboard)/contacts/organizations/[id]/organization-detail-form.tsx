@@ -36,7 +36,13 @@ interface Organization {
   notes: string | null;
 }
 
-export function OrganizationDetailForm({ organization }: { organization: Organization }) {
+export function OrganizationDetailForm({
+  organization,
+  canDelete,
+}: {
+  organization: Organization;
+  canDelete: boolean;
+}) {
   const [form, setForm] = useState(organization);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -177,9 +183,11 @@ export function OrganizationDetailForm({ organization }: { organization: Organiz
             {saving ? "Salvando..." : "Salvar alterações"}
           </Button>
           {saved && <span className="text-sm text-success">Salvo!</span>}
-          <Button variant="destructive" onClick={onDelete} className="ml-auto">
-            Excluir organização
-          </Button>
+          {canDelete && (
+            <Button variant="destructive" onClick={onDelete} className="ml-auto">
+              Excluir organização
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>
