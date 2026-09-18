@@ -17,7 +17,7 @@ export default async function DealDetailPage({
     .from("deals")
     .select(
       `id, title, value, currency, status, expected_close_date, source, stage_id, pipeline_id,
-       lost_reason, frozen_at, last_activity_at, organization_id, contact_id, owner_id,
+       lost_reason, frozen_at, last_activity_at, created_at, organization_id, contact_id, owner_id,
        organizations ( id, name ),
        contacts ( id, name, phone, whatsapp ),
        profiles!deals_owner_id_fkey ( full_name )`,
@@ -157,10 +157,33 @@ export default async function DealDetailPage({
     rottingDays: currentStage?.rotting_days ?? null,
   });
 
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const ageDays = Math.max(
+    0,
+    Math.floor((Date.now() - new Date((deal as any).created_at).getTime()) / DAY_MS),
+  );
+  const daysSinceLastActivity = (deal as any).last_activity_at
+    ? Math.max(
+        0,
+        Math.floor(
+          (Date.now() - new Date((deal as any).last_activity_at).getTime()) / DAY_MS,
+        ),
+      )
+    : null;
+  const activityCounts = (activitiesRes.data ?? []).reduce<Record<string, number>>(
+    (acc, a) => {
+      acc[a.type] = (acc[a.type] ?? 0) + 1;
+      return acc;
+    },
+    {},
+  );
+  const overview = { ageDays, daysSinceLastActivity, activityCounts };
+
   return (
     <DealDetailTabs
       deal={deal as any}
       alerts={alerts}
+      overview={overview}
       stages={stagesRes.data ?? []}
       activities={activitiesRes.data ?? []}
       notes={(notesRes.data ?? []) as any}

@@ -92,9 +92,23 @@ interface HistoryEntry {
   profiles: { full_name: string } | null;
 }
 
+interface DealOverviewStats {
+  ageDays: number;
+  daysSinceLastActivity: number | null;
+  activityCounts: Record<string, number>;
+}
+
+const ACTIVITY_TYPE_LABEL: Record<string, string> = {
+  task: "Tarefa",
+  call: "Ligação",
+  meeting: "Reunião",
+  email: "E-mail",
+};
+
 export function DealDetailTabs({
   deal,
   alerts,
+  overview,
   stages,
   activities,
   notes,
@@ -108,6 +122,7 @@ export function DealDetailTabs({
 }: {
   deal: Deal;
   alerts: DealAlerts;
+  overview: DealOverviewStats;
   stages: Stage[];
   activities: Activity[];
   notes: Note[];
@@ -229,7 +244,38 @@ export function DealDetailTabs({
           <TabsTrigger value="history">Histórico</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview">
+        <TabsContent value="overview" className="flex flex-col gap-4">
+          <Card>
+            <CardContent className="grid grid-cols-2 gap-4 p-5 sm:grid-cols-4">
+              <Field label="Idade do negócio" value={`${overview.ageDays} ${overview.ageDays === 1 ? "dia" : "dias"}`} />
+              <Field
+                label="Sem atividade há"
+                value={
+                  overview.daysSinceLastActivity == null
+                    ? "—"
+                    : `${overview.daysSinceLastActivity} ${overview.daysSinceLastActivity === 1 ? "dia" : "dias"}`
+                }
+              />
+              {Object.keys(overview.activityCounts).length === 0 ? (
+                <div className="col-span-2 flex flex-col gap-0.5">
+                  <span className="text-xs text-muted-foreground">Atividades</span>
+                  <span className="text-sm text-muted-foreground">Nenhuma registrada</span>
+                </div>
+              ) : (
+                <div className="col-span-2 flex flex-col gap-0.5">
+                  <span className="text-xs text-muted-foreground">Atividades por tipo</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {Object.entries(overview.activityCounts).map(([type, count]) => (
+                      <Badge key={type} variant="outline">
+                        {ACTIVITY_TYPE_LABEL[type] ?? type}: {count}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardContent className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2">
               <div className="flex flex-col gap-0.5">
