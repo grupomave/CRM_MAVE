@@ -11,7 +11,7 @@ export interface PersonRow {
   email: string | null;
   phone: string | null;
   whatsapp: string | null;
-  organizations: { name: string } | null;
+  organizations: { id: string; name: string } | null;
 }
 
 export function PeopleList({ contacts }: { contacts: PersonRow[] }) {
@@ -58,7 +58,15 @@ export function PeopleList({ contacts }: { contacts: PersonRow[] }) {
                     {c.name}
                   </Link>
                 </td>
-                <td className="p-3 text-muted-foreground">{c.email ?? "—"}</td>
+                <td className="p-3 text-muted-foreground">
+                  {c.email ? (
+                    <a href={`mailto:${c.email}`} className="hover:text-primary hover:underline">
+                      {c.email}
+                    </a>
+                  ) : (
+                    "—"
+                  )}
+                </td>
                 <td className="p-3 text-muted-foreground">
                   <span className="flex items-center gap-1">
                     {c.phone ?? c.whatsapp ?? "—"}
@@ -66,7 +74,16 @@ export function PeopleList({ contacts }: { contacts: PersonRow[] }) {
                   </span>
                 </td>
                 <td className="p-3 text-muted-foreground">
-                  {c.organizations?.name ?? "—"}
+                  {c.organizations ? (
+                    <Link
+                      href={`/contacts/organizations/${c.organizations.id}`}
+                      className="hover:text-primary hover:underline"
+                    >
+                      {c.organizations.name}
+                    </Link>
+                  ) : (
+                    "—"
+                  )}
                 </td>
               </tr>
             ))}

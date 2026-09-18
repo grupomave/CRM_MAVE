@@ -8,7 +8,7 @@ export default async function PeoplePage() {
   const contacts = await fetchAllRows<PersonRow>((from, to) =>
     supabase
       .from("contacts")
-      .select("id, name, email, phone, whatsapp, organizations ( name )")
+      .select("id, name, email, phone, whatsapp, organizations ( id, name )")
       .order("created_at", { ascending: false })
       .range(from, to) as unknown as PromiseLike<{ data: PersonRow[] | null; error: unknown }>,
   );
