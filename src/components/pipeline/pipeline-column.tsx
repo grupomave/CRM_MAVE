@@ -14,6 +14,9 @@ export function PipelineColumn({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
   const total = deals.reduce((sum, d) => sum + d.value, 0);
+  const alertCount = deals.filter(
+    (d) => d.overdue_days || d.no_upcoming_activity || d.is_stagnant,
+  ).length;
 
   return (
     <div
@@ -30,9 +33,16 @@ export function PipelineColumn({
             {deals.length}
           </span>
         </div>
-        <span className="text-xs font-medium text-muted-foreground">
-          {formatCurrencyBRL(total)}
-        </span>
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium text-muted-foreground">
+            {formatCurrencyBRL(total)}
+          </span>
+          {alertCount > 0 && (
+            <span className="text-xs font-medium text-destructive">
+              {alertCount} com alerta
+            </span>
+          )}
+        </div>
       </div>
       <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-2">
         {deals.map((deal) => (

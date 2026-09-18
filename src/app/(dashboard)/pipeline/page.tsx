@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { PipelineBoard } from "@/components/pipeline/pipeline-board";
+import { computeDealAlerts } from "@/lib/deal-alerts";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import type { OwnerOption, PipelineDeal, PipelineStage } from "@/components/pipeline/types";
 
 interface RawDealRow {
@@ -9,9 +11,12 @@ interface RawDealRow {
   stage_id: string;
   owner_id: string;
   source: string | null;
+  status: "open" | "won" | "lost";
   expected_close_date: string | null;
   updated_at: string;
+  last_activity_at: string | null;
   organizations: { name: string } | null;
+  contacts: { name: string } | null;
   profiles: { full_name: string } | null;
 }
 
@@ -35,29 +40,32 @@ export default async function PipelinePage({
 
   const pipelineId = selectedPipeline?.id;
 
-  const [stagesRes, dealsRes, profilesRes] = await Promise.all([
+  const [stagesRes, dealRows, profilesRes] = await Promise.all([
     pipelineId
       ? supabase
           .from("pipeline_stages")
-          .select("id, name, order_index, pipeline_id")
+          .select("id, name, order_index, pipeline_id, rotting_days")
           .eq("pipeline_id", pipelineId)
           .order("order_index")
       : Promise.resolve({ data: [] as PipelineStage[] }),
     pipelineId
-      ? supabase
-          .from("deals")
-          .select(
-            `id, title, value, stage_id, owner_id, source, expected_close_date, updated_at,
-             organizations ( name ),
-             profiles ( full_name )`,
-          )
-          .eq("pipeline_id", pipelineId)
-          .eq("status", "open")
-      : Promise.resolve({ data: [] as RawDealRow[] }),
+      ? fetchAllRows<RawDealRow>((from, to) =>
+          supabase
+            .from("deals")
+            .select(
+              `id, title, value, stage_id, owner_id, source, status, expected_close_date, updated_at, last_activity_at,
+               organizations ( name ),
+               contacts ( name ),
+               profiles!deals_owner_id_fkey ( full_name )`,
+            )
+            .eq("pipeline_id", pipelineId)
+            .range(from, to) as unknown as PromiseLike<{ data: RawDealRow[] | null; error: unknown }>,
+        )
+      : Promise.resolve([] as RawDealRow[]),
     supabase.from("profiles").select("id, full_name"),
   ]);
 
-  const dealIds = (dealsRes.data ?? []).map((d) => d.id as string);
+  const dealIds = dealRows.map((d) => d.id);
 
   const { data: nextActivities } = dealIds.length
     ? await supabase
@@ -75,20 +83,38 @@ export default async function PipelinePage({
     }
   }
 
-  const deals: PipelineDeal[] = (dealsRes.data ?? []).map((d: any) => ({
-    id: d.id,
-    title: d.title,
-    value: d.value ?? 0,
-    stage_id: d.stage_id,
-    owner_id: d.owner_id,
-    source: d.source,
-    expected_close_date: d.expected_close_date,
-    updated_at: d.updated_at,
-    organization_name: d.organizations?.name ?? null,
-    owner_name: d.profiles?.full_name ?? "—",
-    next_activity_subject: nextActivityByDeal.get(d.id)?.subject ?? null,
-    next_activity_due: nextActivityByDeal.get(d.id)?.due_date ?? null,
-  }));
+  const rottingDaysByStage = new Map(
+    (stagesRes.data ?? []).map((s: any) => [s.id, s.rotting_days as number | null]),
+  );
+
+  const deals: PipelineDeal[] = dealRows.map((d: any) => {
+    const nextActivityDue = nextActivityByDeal.get(d.id)?.due_date ?? null;
+    const alerts = computeDealAlerts({
+      nextActivityDue,
+      lastActivityAt: d.last_activity_at,
+      rottingDays: rottingDaysByStage.get(d.stage_id) ?? null,
+    });
+
+    return {
+      id: d.id,
+      title: d.title,
+      value: d.value ?? 0,
+      stage_id: d.stage_id,
+      owner_id: d.owner_id,
+      source: d.source,
+      status: d.status,
+      expected_close_date: d.expected_close_date,
+      updated_at: d.updated_at,
+      organization_name: d.organizations?.name ?? null,
+      contact_name: d.contacts?.name ?? null,
+      owner_name: d.profiles?.full_name ?? "—",
+      next_activity_subject: nextActivityByDeal.get(d.id)?.subject ?? null,
+      next_activity_due: nextActivityDue,
+      overdue_days: alerts.overdueDays,
+      no_upcoming_activity: alerts.noUpcomingActivity,
+      is_stagnant: alerts.isStagnant,
+    };
+  });
 
   const owners: OwnerOption[] = profilesRes.data ?? [];
 

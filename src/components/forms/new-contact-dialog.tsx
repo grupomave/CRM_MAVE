@@ -31,11 +31,13 @@ export function NewContactDialog({
   onCreated,
   open: openProp,
   onOpenChange,
+  organizationId,
 }: {
   trigger?: React.ReactNode;
-  onCreated?: () => void;
+  onCreated?: (created?: { id: string; name: string }) => void;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  organizationId?: string;
 }) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = openProp ?? internalOpen;
@@ -61,12 +63,17 @@ export function NewContactDialog({
       return;
     }
 
-    const { error } = await supabase.from("contacts").insert({
-      name: values.name,
-      email: values.email || null,
-      phone: values.phone || null,
-      owner_id: user.id,
-    });
+    const { data, error } = await supabase
+      .from("contacts")
+      .insert({
+        name: values.name,
+        email: values.email || null,
+        phone: values.phone || null,
+        organization_id: organizationId ?? null,
+        owner_id: user.id,
+      })
+      .select("id, name")
+      .single();
 
     if (error) {
       setSubmitError("Não foi possível criar o contato. Tente novamente.");
@@ -75,7 +82,7 @@ export function NewContactDialog({
 
     reset();
     setOpen(false);
-    onCreated?.();
+    onCreated?.(data ?? undefined);
   }
 
   return (

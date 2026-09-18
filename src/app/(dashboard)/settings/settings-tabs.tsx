@@ -4,6 +4,16 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -14,6 +24,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
+import { createUserWithPassword, setUserActive } from "@/lib/actions/users";
 import type { UserRole, CustomFieldType, EntityType } from "@/lib/supabase/types";
 
 interface Profile {
@@ -21,6 +32,12 @@ interface Profile {
   full_name: string;
   role: UserRole;
   team_id: string | null;
+  is_active: boolean;
+}
+
+interface Team {
+  id: string;
+  name: string;
 }
 
 interface Pipeline {
@@ -34,6 +51,7 @@ interface Stage {
   name: string;
   order_index: number;
   pipeline_id: string;
+  rotting_days: number | null;
 }
 
 interface CustomField {
@@ -50,11 +68,13 @@ export function SettingsTabs({
   pipelines,
   stages,
   customFields,
+  teams,
 }: {
   profiles: Profile[];
   pipelines: Pipeline[];
   stages: Stage[];
   customFields: CustomField[];
+  teams: Team[];
 }) {
   return (
     <Tabs defaultValue="users">
@@ -65,7 +85,7 @@ export function SettingsTabs({
       </TabsList>
 
       <TabsContent value="users">
-        <UsersTab profiles={profiles} />
+        <UsersTab profiles={profiles} teams={teams} />
       </TabsContent>
       <TabsContent value="pipelines">
         <PipelinesTab pipelines={pipelines} stages={stages} />
@@ -77,44 +97,211 @@ export function SettingsTabs({
   );
 }
 
-function UsersTab({ profiles }: { profiles: Profile[] }) {
+function UsersTab({ profiles, teams }: { profiles: Profile[]; teams: Team[] }) {
   const router = useRouter();
   const supabase = createClient();
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  const sorted = [...profiles].sort((a, b) => {
+    if (a.is_active !== b.is_active) return a.is_active ? -1 : 1;
+    return a.full_name.localeCompare(b.full_name);
+  });
+
+  async function onToggleActive(profile: Profile) {
+    setTogglingId(profile.id);
+    try {
+      await setUserActive(profile.id, !profile.is_active);
+      router.refresh();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Não foi possível alterar o usuário.");
+    }
+    setTogglingId(null);
+  }
 
   return (
-    <div className="flex flex-col gap-2">
-      {profiles.map((p) => (
-        <Card key={p.id}>
-          <CardContent className="flex items-center justify-between gap-4 p-4">
-            <span className="text-sm font-medium">{p.full_name}</span>
-            <Select
-              value={p.role}
-              onValueChange={async (value) => {
-                await supabase
-                  .from("profiles")
-                  .update({ role: value as UserRole })
-                  .eq("id", p.id);
-                router.refresh();
-              }}
-            >
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="gestor">Gestor</SelectItem>
-                <SelectItem value="vendedor">Vendedor</SelectItem>
-              </SelectContent>
-            </Select>
-          </CardContent>
-        </Card>
-      ))}
-      {profiles.length === 0 && (
-        <p className="text-sm text-muted-foreground">
-          Nenhum usuário encontrado. Convide usuários pelo painel do Supabase Auth.
-        </p>
-      )}
+    <div className="flex flex-col gap-4">
+      <CreateUserDialog teams={teams} onCreated={() => router.refresh()} />
+
+      <div className="flex flex-col gap-2">
+        {sorted.map((p) => (
+          <Card key={p.id}>
+            <CardContent className="flex items-center justify-between gap-4 p-4">
+              <span className="flex items-center gap-2 text-sm font-medium">
+                {p.full_name}
+                {!p.is_active && (
+                  <Badge variant="outline" className="text-muted-foreground">
+                    inativo
+                  </Badge>
+                )}
+              </span>
+              <div className="flex items-center gap-2">
+                <Select
+                  value={p.role}
+                  onValueChange={async (value) => {
+                    await supabase
+                      .from("profiles")
+                      .update({ role: value as UserRole })
+                      .eq("id", p.id);
+                    router.refresh();
+                  }}
+                >
+                  <SelectTrigger className="w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="gestor">Gestor</SelectItem>
+                    <SelectItem value="vendedor">Vendedor</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={togglingId === p.id}
+                  onClick={() => onToggleActive(p)}
+                >
+                  {p.is_active ? "Desativar" : "Ativar"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+        {profiles.length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            Nenhum usuário encontrado.
+          </p>
+        )}
+      </div>
     </div>
+  );
+}
+
+function CreateUserDialog({
+  teams,
+  onCreated,
+}: {
+  teams: Team[];
+  onCreated?: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState<UserRole>("vendedor");
+  const [teamId, setTeamId] = useState<string>("");
+  const [tempPassword, setTempPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function onSubmit() {
+    setError(null);
+    if (!fullName.trim() || !email.trim()) {
+      setError("Preencha nome e e-mail.");
+      return;
+    }
+    if (tempPassword.length < 8) {
+      setError("A senha temporária precisa ter pelo menos 8 caracteres.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await createUserWithPassword({
+        email: email.trim(),
+        fullName: fullName.trim(),
+        role,
+        teamId: teamId || null,
+        tempPassword,
+      });
+      setFullName("");
+      setEmail("");
+      setTempPassword("");
+      setRole("vendedor");
+      setTeamId("");
+      setOpen(false);
+      onCreated?.();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não foi possível criar o usuário.");
+    }
+    setSubmitting(false);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button className="self-start">Criar usuário</Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Criar usuário</DialogTitle>
+        </DialogHeader>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="userFullName">Nome completo</Label>
+            <Input
+              id="userFullName"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="userEmail">E-mail</Label>
+            <Input
+              id="userEmail"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="userTempPassword">Senha temporária</Label>
+            <Input
+              id="userTempPassword"
+              type="text"
+              value={tempPassword}
+              onChange={(e) => setTempPassword(e.target.value)}
+              placeholder="Informe a senha inicial (o usuário troca no 1º login)"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label>Papel</Label>
+              <Select value={role} onValueChange={(v) => setRole(v as UserRole)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="gestor">Gestor</SelectItem>
+                  <SelectItem value="vendedor">Vendedor</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Equipe</Label>
+              <Select value={teamId} onValueChange={setTeamId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Nenhuma" />
+                </SelectTrigger>
+                <SelectContent>
+                  {teams.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+        </div>
+        <DialogFooter>
+          <Button onClick={onSubmit} disabled={submitting}>
+            {submitting ? "Criando..." : "Criar usuário"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -164,6 +351,14 @@ function PipelinesTab({
     if (!editingStageName.trim()) return;
     await supabase.from("pipeline_stages").update({ name: editingStageName.trim() }).eq("id", id);
     setEditingStageId(null);
+    router.refresh();
+  }
+
+  async function updateRottingDays(id: string, rawValue: string) {
+    const trimmed = rawValue.trim();
+    const parsed = trimmed === "" ? null : Number(trimmed);
+    if (parsed !== null && (Number.isNaN(parsed) || parsed < 0)) return;
+    await supabase.from("pipeline_stages").update({ rotting_days: parsed }).eq("id", id);
     router.refresh();
   }
 
@@ -229,10 +424,10 @@ function PipelinesTab({
                   </Button>
                 )}
               </div>
-              <ol className="flex flex-wrap gap-2">
-                {pipelineStages.map((s) =>
-                  editingStageId === s.id ? (
-                    <li key={s.id}>
+              <ol className="flex flex-wrap gap-3">
+                {pipelineStages.map((s) => (
+                  <li key={s.id} className="flex flex-col items-start gap-1">
+                    {editingStageId === s.id ? (
                       <Input
                         autoFocus
                         value={editingStageName}
@@ -241,9 +436,7 @@ function PipelinesTab({
                         onBlur={() => renameStage(s.id)}
                         className="h-7 w-40 text-xs"
                       />
-                    </li>
-                  ) : (
-                    <li key={s.id}>
+                    ) : (
                       <button
                         className="rounded-md border border-border px-2 py-1 text-xs hover:border-primary hover:text-primary"
                         onClick={() => {
@@ -254,9 +447,24 @@ function PipelinesTab({
                       >
                         {s.order_index + 1}. {s.name}
                       </button>
-                    </li>
-                  ),
-                )}
+                    )}
+                    <div className="flex items-center gap-1 pl-1">
+                      <span className="text-[10px] text-muted-foreground">
+                        Estagna em
+                      </span>
+                      <Input
+                        type="number"
+                        min={0}
+                        defaultValue={s.rotting_days ?? ""}
+                        placeholder="—"
+                        title="Dias sem atividade até marcar como estagnado (vazio = sem alerta)"
+                        className="h-6 w-14 px-1 text-[10px]"
+                        onBlur={(e) => updateRottingDays(s.id, e.target.value)}
+                      />
+                      <span className="text-[10px] text-muted-foreground">dias</span>
+                    </div>
+                  </li>
+                ))}
               </ol>
               <div className="flex gap-2">
                 <Input

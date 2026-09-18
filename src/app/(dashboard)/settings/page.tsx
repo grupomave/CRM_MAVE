@@ -14,15 +14,20 @@ export default async function SettingsPage() {
     .eq("id", user?.id ?? "")
     .single();
 
-  const [profilesRes, pipelinesRes, stagesRes, customFieldsRes] = await Promise.all([
-    supabase.from("profiles").select("id, full_name, role, team_id"),
-    supabase.from("pipelines").select("id, name, is_default"),
-    supabase.from("pipeline_stages").select("id, name, order_index, pipeline_id").order("order_index"),
-    supabase
-      .from("custom_fields")
-      .select("id, entity_type, label, field_type, required, order_index")
-      .order("order_index"),
-  ]);
+  const [profilesRes, pipelinesRes, stagesRes, customFieldsRes, teamsRes] =
+    await Promise.all([
+      supabase.from("profiles").select("id, full_name, role, team_id, is_active"),
+      supabase.from("pipelines").select("id, name, is_default"),
+      supabase
+        .from("pipeline_stages")
+        .select("id, name, order_index, pipeline_id, rotting_days")
+        .order("order_index"),
+      supabase
+        .from("custom_fields")
+        .select("id, entity_type, label, field_type, required, order_index")
+        .order("order_index"),
+      supabase.from("teams").select("id, name"),
+    ]);
 
   const isAdmin = myProfile?.role === "admin";
 
@@ -48,6 +53,7 @@ export default async function SettingsPage() {
         pipelines={pipelinesRes.data ?? []}
         stages={stagesRes.data ?? []}
         customFields={customFieldsRes.data ?? []}
+        teams={teamsRes.data ?? []}
       />
     </div>
   );

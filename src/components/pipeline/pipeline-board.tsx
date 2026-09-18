@@ -1,18 +1,23 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   DndContext,
+  DragOverlay,
   PointerSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from "@dnd-kit/core";
 import { KanbanSquare, List, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { NewDealDialog } from "@/components/forms/new-deal-dialog";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrencyBRL, cn } from "@/lib/utils";
+import { DealCardOverlay } from "./deal-card";
 import { PipelineColumn } from "./pipeline-column";
 import { PipelineSwitcher } from "./pipeline-switcher";
 import {
@@ -28,11 +33,23 @@ import type {
 
 type ViewMode = "kanban" | "list" | "forecast";
 
+const STATUS_LABEL: Record<PipelineDeal["status"], string> = {
+  open: "Aberto",
+  won: "Ganho",
+  lost: "Perdido",
+};
+
 const DEFAULT_FILTERS: PipelineFiltersState = {
+  search: "",
   ownerId: "all",
   source: "all",
+  status: "open",
+  stageId: "all",
   minValue: "",
   maxValue: "",
+  onlyOverdue: false,
+  onlyNoUpcoming: false,
+  onlyStagnant: false,
 };
 
 export function PipelineBoard({
@@ -51,6 +68,7 @@ export function PipelineBoard({
   const [deals, setDeals] = useState(initialDeals);
   const [filters, setFilters] = useState<PipelineFiltersState>(DEFAULT_FILTERS);
   const [view, setView] = useState<ViewMode>("kanban");
+  const [activeDealId, setActiveDealId] = useState<string | null>(null);
   const supabase = createClient();
 
   const sensors = useSensors(
@@ -65,15 +83,18 @@ export function PipelineBoard({
         { event: "*", schema: "public", table: "deals" },
         (payload) => {
           if (payload.eventType === "UPDATE") {
-            const updated = payload.new as { id: string; stage_id: string; value: number; status: string };
+            const updated = payload.new as {
+              id: string;
+              stage_id: string;
+              value: number;
+              status: "open" | "won" | "lost";
+            };
             setDeals((prev) =>
-              updated.status !== "open"
-                ? prev.filter((d) => d.id !== updated.id)
-                : prev.map((d) =>
-                    d.id === updated.id
-                      ? { ...d, stage_id: updated.stage_id, value: updated.value }
-                      : d,
-                  ),
+              prev.map((d) =>
+                d.id === updated.id
+                  ? { ...d, stage_id: updated.stage_id, value: updated.value, status: updated.status }
+                  : d,
+              ),
             );
           }
         },
@@ -93,16 +114,42 @@ export function PipelineBoard({
   );
 
   const filteredDeals = useMemo(() => {
+    const search = filters.search.trim().toLowerCase();
     return deals.filter((d) => {
+      if (search) {
+        const haystack = `${d.title} ${d.organization_name ?? ""} ${d.contact_name ?? ""} ${d.owner_name}`.toLowerCase();
+        if (!haystack.includes(search)) return false;
+      }
+      if (filters.status !== "all" && d.status !== filters.status) return false;
+      if (filters.stageId !== "all" && d.stage_id !== filters.stageId) return false;
       if (filters.ownerId !== "all" && d.owner_id !== filters.ownerId) return false;
       if (filters.source !== "all" && d.source !== filters.source) return false;
       if (filters.minValue && d.value < Number(filters.minValue)) return false;
       if (filters.maxValue && d.value > Number(filters.maxValue)) return false;
+      if (filters.onlyOverdue && !d.overdue_days) return false;
+      if (filters.onlyNoUpcoming && !d.no_upcoming_activity) return false;
+      if (filters.onlyStagnant && !d.is_stagnant) return false;
       return true;
     });
   }, [deals, filters]);
 
+  // O Kanban só faz sentido para negócios abertos — ganhos/perdidos não têm
+  // "próxima coluna" (docx §3: fechados só aparecem na Lista).
+  const kanbanDeals = useMemo(
+    () => filteredDeals.filter((d) => d.status === "open"),
+    [filteredDeals],
+  );
+
+  const activeDeal = activeDealId
+    ? deals.find((d) => d.id === activeDealId)
+    : undefined;
+
+  function handleDragStart(event: DragStartEvent) {
+    setActiveDealId(String(event.active.id));
+  }
+
   async function handleDragEnd(event: DragEndEvent) {
+    setActiveDealId(null);
     const { active, over } = event;
     if (!over) return;
 
@@ -161,12 +208,6 @@ export function PipelineBoard({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <PipelineFilters
-            owners={owners}
-            sources={sources}
-            filters={filters}
-            onChange={setFilters}
-          />
           <NewDealDialog
             trigger={<Button>Novo negócio</Button>}
             pipelineId={selectedPipelineId ?? undefined}
@@ -176,6 +217,14 @@ export function PipelineBoard({
         </div>
       </div>
 
+      <PipelineFilters
+        owners={owners}
+        stages={stages}
+        sources={sources}
+        filters={filters}
+        onChange={setFilters}
+      />
+
       {stages.length === 0 && (
         <p className="text-sm text-muted-foreground">
           Nenhum pipeline padrão encontrado. Rode as migrations do Supabase
@@ -184,16 +233,25 @@ export function PipelineBoard({
       )}
 
       {view === "kanban" && (
-        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+        <DndContext
+          id="pipeline-kanban"
+          sensors={sensors}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={() => setActiveDealId(null)}
+        >
           <div className="flex flex-1 gap-3 overflow-x-auto pb-2">
             {stages.map((stage) => (
               <PipelineColumn
                 key={stage.id}
                 stage={stage}
-                deals={filteredDeals.filter((d) => d.stage_id === stage.id)}
+                deals={kanbanDeals.filter((d) => d.stage_id === stage.id)}
               />
             ))}
           </div>
+          <DragOverlay>
+            {activeDeal ? <DealCardOverlay deal={activeDeal} /> : null}
+          </DragOverlay>
         </DndContext>
       )}
 
@@ -203,7 +261,10 @@ export function PipelineBoard({
             <thead className="bg-muted text-left text-xs uppercase text-muted-foreground">
               <tr>
                 <th className="p-3">Negócio</th>
+                <th className="p-3">Organização</th>
+                <th className="p-3">Contato</th>
                 <th className="p-3">Estágio</th>
+                <th className="p-3">Status</th>
                 <th className="p-3">Valor</th>
                 <th className="p-3">Responsável</th>
               </tr>
@@ -211,14 +272,40 @@ export function PipelineBoard({
             <tbody>
               {filteredDeals.map((d) => (
                 <tr key={d.id} className="border-t border-border">
-                  <td className="p-3 font-medium">{d.title}</td>
+                  <td className="p-3 font-medium">
+                    <Link href={`/deals/${d.id}`} className="hover:underline">
+                      {d.title}
+                    </Link>
+                  </td>
+                  <td className="p-3 text-muted-foreground">{d.organization_name ?? "—"}</td>
+                  <td className="p-3 text-muted-foreground">{d.contact_name ?? "—"}</td>
                   <td className="p-3 text-muted-foreground">
                     {stages.find((s) => s.id === d.stage_id)?.name}
+                  </td>
+                  <td className="p-3">
+                    <Badge
+                      variant={
+                        d.status === "won"
+                          ? "success"
+                          : d.status === "lost"
+                            ? "destructive"
+                            : "outline"
+                      }
+                    >
+                      {STATUS_LABEL[d.status]}
+                    </Badge>
                   </td>
                   <td className="p-3">{formatCurrencyBRL(d.value)}</td>
                   <td className="p-3 text-muted-foreground">{d.owner_name}</td>
                 </tr>
               ))}
+              {filteredDeals.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="p-6 text-center text-muted-foreground">
+                    Nenhum negócio encontrado com esses filtros.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

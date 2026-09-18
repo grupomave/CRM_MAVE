@@ -1,12 +1,19 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState, type ComponentProps } from "react";
 import { useRouter } from "next/navigation";
-import { Building2, User as UserIcon, Paperclip, Download } from "lucide-react";
+import Link from "next/link";
+import {
+  Building2,
+  User as UserIcon,
+  AlertTriangle,
+  Snowflake,
+} from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -16,8 +23,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { NewActivityDialog } from "@/components/forms/new-activity-dialog";
+import { EntityFilesTab, type EntityAttachment } from "@/components/entity-files-tab";
+import { WhatsAppButton } from "@/components/whatsapp-button";
+import { ProposalsTab } from "./proposals-tab";
+import { DealReportButton } from "./deal-report-button";
 import { createClient } from "@/lib/supabase/client";
-import { formatCurrencyBRL, uniqueSuffix } from "@/lib/utils";
+import {
+  LOST_REASON_LABEL,
+  DEAL_STATUS_LABEL,
+  type LostReason,
+} from "@/lib/supabase/types";
+import type { DealAlerts } from "@/lib/deal-alerts";
 
 interface Deal {
   id: string;
@@ -29,9 +45,20 @@ interface Deal {
   source: string | null;
   stage_id: string;
   pipeline_id: string;
+  organization_id: string | null;
+  contact_id: string | null;
+  owner_id: string;
+  lost_reason: LostReason | null;
+  frozen_at: string | null;
   organizations: { id: string; name: string } | null;
-  contacts: { id: string; name: string } | null;
+  contacts: { id: string; name: string; phone: string | null; whatsapp: string | null } | null;
   profiles: { full_name: string } | null;
+}
+
+interface Option {
+  id: string;
+  name?: string;
+  full_name?: string;
 }
 
 interface Stage {
@@ -55,48 +82,78 @@ interface Note {
   profiles: { full_name: string } | null;
 }
 
-interface Attachment {
-  id: string;
-  file_name: string;
-  storage_path: string;
-  size_bytes: number;
-  created_at: string;
-}
+type Attachment = EntityAttachment;
 
 interface HistoryEntry {
   id: string;
-  from_stage_name: string;
-  to_stage_name: string;
+  kind: "stage" | "status";
+  label: string;
   changed_at: string;
   profiles: { full_name: string } | null;
 }
 
 export function DealDetailTabs({
   deal,
+  alerts,
   stages,
   activities,
   notes,
   attachments,
   history,
+  organizations,
+  contacts,
+  owners,
+  canEditOwner,
+  proposals,
 }: {
   deal: Deal;
+  alerts: DealAlerts;
   stages: Stage[];
   activities: Activity[];
   notes: Note[];
   attachments: Attachment[];
   history: HistoryEntry[];
+  organizations: Option[];
+  contacts: Option[];
+  owners: Option[];
+  canEditOwner: boolean;
+  proposals: ComponentProps<typeof ProposalsTab>["proposals"];
 }) {
   const router = useRouter();
   const supabase = createClient();
 
+  async function updateDealField(field: string, value: string | null) {
+    const payload: Record<string, string | null> = { [field]: value };
+    await supabase
+      .from("deals")
+      .update(payload as any)
+      .eq("id", deal.id);
+    router.refresh();
+  }
+
+  async function updateDealValue(raw: string) {
+    const parsed = Number(raw.replace(",", "."));
+    if (Number.isNaN(parsed) || parsed < 0) return;
+    await supabase.from("deals").update({ value: parsed }).eq("id", deal.id);
+    router.refresh();
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+        <div className="flex flex-col gap-1">
           <h1 className="text-xl font-semibold text-foreground">{deal.title}</h1>
-          <p className="text-lg font-semibold text-primary">
-            {formatCurrencyBRL(deal.value)}
-          </p>
+          <div className="flex items-center gap-1.5">
+            <span className="text-lg font-semibold text-primary">R$</span>
+            <Input
+              type="number"
+              step="0.01"
+              min={0}
+              defaultValue={deal.value}
+              className="h-8 w-40 border-none bg-transparent px-1 text-lg font-semibold text-primary shadow-none focus-visible:ring-1"
+              onBlur={(e) => updateDealValue(e.target.value)}
+            />
+          </div>
         </div>
         <Select
           value={deal.stage_id}
@@ -118,10 +175,55 @@ export function DealDetailTabs({
         </Select>
       </div>
 
+      {(alerts.overdueDays || alerts.noUpcomingActivity || alerts.isStagnant) && (
+        <div className="flex flex-wrap gap-1">
+          {alerts.overdueDays && (
+            <Badge variant="destructive">
+              Atrasado há {alerts.overdueDays}{" "}
+              {alerts.overdueDays === 1 ? "dia" : "dias"}
+            </Badge>
+          )}
+          {alerts.noUpcomingActivity && (
+            <Badge variant="warning">
+              <AlertTriangle className="size-3" />
+              Sem próxima atividade
+            </Badge>
+          )}
+          {alerts.isStagnant && (
+            <Badge variant="stagnant">
+              <Snowflake className="size-3" />
+              Estagnado
+            </Badge>
+          )}
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <DealActions deal={deal} onChanged={() => router.refresh()} />
+        <DealReportButton
+          data={{
+            deal: {
+              title: deal.title,
+              value: deal.value,
+              status: deal.status,
+              expected_close_date: deal.expected_close_date,
+              source: deal.source,
+              lost_reason: deal.lost_reason,
+              organizations: deal.organizations,
+              contacts: deal.contacts,
+              profiles: deal.profiles,
+            },
+            activities,
+            attachments,
+          }}
+        />
+      </div>
+
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Visão geral</TabsTrigger>
           <TabsTrigger value="activities">Atividades</TabsTrigger>
+          <TabsTrigger value="proposals">Propostas</TabsTrigger>
           <TabsTrigger value="notes">Notas</TabsTrigger>
           <TabsTrigger value="files">Arquivos</TabsTrigger>
           <TabsTrigger value="history">Histórico</TabsTrigger>
@@ -130,19 +232,145 @@ export function DealDetailTabs({
         <TabsContent value="overview">
           <Card>
             <CardContent className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2">
-              <Field icon={Building2} label="Organização" value={deal.organizations?.name ?? "—"} />
-              <Field icon={UserIcon} label="Contato" value={deal.contacts?.name ?? "—"} />
-              <Field label="Responsável" value={deal.profiles?.full_name ?? "—"} />
-              <Field label="Origem" value={deal.source ?? "—"} />
+              <div className="flex flex-col gap-0.5">
+                <span className="text-xs text-muted-foreground">Organização</span>
+                <div className="flex items-center gap-1.5">
+                  <Building2 className="size-3.5 shrink-0 text-muted-foreground" />
+                  <Select
+                    value={deal.organization_id ?? "none"}
+                    onValueChange={(v) =>
+                      updateDealField("organization_id", v === "none" ? null : v)
+                    }
+                  >
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue placeholder="Nenhuma" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nenhuma</SelectItem>
+                      {organizations.map((o) => (
+                        <SelectItem key={o.id} value={o.id}>
+                          {o.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {deal.organization_id && (
+                    <Link
+                      href={`/contacts/organizations/${deal.organization_id}`}
+                      className="text-xs text-primary hover:underline"
+                    >
+                      abrir
+                    </Link>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-0.5">
+                <span className="text-xs text-muted-foreground">Contato</span>
+                <div className="flex items-center gap-1.5">
+                  <UserIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                  <Select
+                    value={deal.contact_id ?? "none"}
+                    onValueChange={(v) =>
+                      updateDealField("contact_id", v === "none" ? null : v)
+                    }
+                  >
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue placeholder="Nenhum" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nenhum</SelectItem>
+                      {contacts.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {deal.contact_id && (
+                    <Link
+                      href={`/contacts/people/${deal.contact_id}`}
+                      className="text-xs text-primary hover:underline"
+                    >
+                      abrir
+                    </Link>
+                  )}
+                  <WhatsAppButton
+                    phone={deal.contacts?.whatsapp ?? deal.contacts?.phone}
+                    contactId={deal.contact_id ?? undefined}
+                    dealId={deal.id}
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-0.5">
+                <span className="text-xs text-muted-foreground">Responsável</span>
+                {canEditOwner ? (
+                  <Select
+                    value={deal.owner_id}
+                    onValueChange={(v) => updateDealField("owner_id", v)}
+                  >
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {owners.map((o) => (
+                        <SelectItem key={o.id} value={o.id}>
+                          {o.full_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <span className="text-sm font-medium">
+                    {deal.profiles?.full_name ?? "—"}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-0.5">
+                <span className="text-xs text-muted-foreground">Origem</span>
+                <Input
+                  defaultValue={deal.source ?? ""}
+                  placeholder="Indicação, site..."
+                  className="h-8 text-sm"
+                  onBlur={(e) => updateDealField("source", e.target.value || null)}
+                />
+              </div>
+
+              <div className="flex flex-col gap-0.5">
+                <span className="text-xs text-muted-foreground">
+                  Previsão de fechamento
+                </span>
+                <Input
+                  type="date"
+                  defaultValue={deal.expected_close_date ?? ""}
+                  className="h-8 text-sm"
+                  onChange={(e) =>
+                    updateDealField("expected_close_date", e.target.value || null)
+                  }
+                />
+              </div>
+
               <Field
-                label="Previsão de fechamento"
+                label="Status"
                 value={
-                  deal.expected_close_date
-                    ? new Date(deal.expected_close_date).toLocaleDateString("pt-BR")
-                    : "—"
+                  DEAL_STATUS_LABEL[deal.status as "open" | "won" | "lost"] ??
+                  deal.status
                 }
               />
-              <Field label="Status" value={deal.status} />
+              {deal.status === "lost" && deal.lost_reason && (
+                <Field
+                  label="Motivo da perda"
+                  value={LOST_REASON_LABEL[deal.lost_reason]}
+                />
+              )}
+              {deal.frozen_at && (
+                <Field
+                  label="Congelado em"
+                  value={new Date(deal.frozen_at).toLocaleDateString("pt-BR")}
+                />
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -182,12 +410,16 @@ export function DealDetailTabs({
           </div>
         </TabsContent>
 
+        <TabsContent value="proposals">
+          <ProposalsTab dealId={deal.id} proposals={proposals} />
+        </TabsContent>
+
         <TabsContent value="notes">
           <NotesTab dealId={deal.id} notes={notes} />
         </TabsContent>
 
         <TabsContent value="files">
-          <FilesTab dealId={deal.id} attachments={attachments} />
+          <EntityFilesTab entityType="deal" entityId={deal.id} attachments={attachments} />
         </TabsContent>
 
         <TabsContent value="history">
@@ -195,8 +427,11 @@ export function DealDetailTabs({
             {history.map((h) => (
               <Card key={h.id}>
                 <CardContent className="flex items-center justify-between p-3 text-sm">
-                  <span>
-                    {h.from_stage_name} → <strong>{h.to_stage_name}</strong>
+                  <span className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-[10px] uppercase">
+                      {h.kind === "stage" ? "Etapa" : "Status"}
+                    </Badge>
+                    {h.label}
                   </span>
                   <span className="text-xs text-muted-foreground">
                     {h.profiles?.full_name ?? "—"} em{" "}
@@ -213,6 +448,130 @@ export function DealDetailTabs({
           </div>
         </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+function DealActions({
+  deal,
+  onChanged,
+}: {
+  deal: Deal;
+  onChanged: () => void;
+}) {
+  const supabase = createClient();
+  const [pickingLostReason, setPickingLostReason] = useState(false);
+  const [lostReason, setLostReason] = useState<LostReason | "">("");
+  const [busy, setBusy] = useState(false);
+
+  async function changeStatus(
+    toStatus: "open" | "won" | "lost",
+    reason?: LostReason,
+  ) {
+    setBusy(true);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    await supabase
+      .from("deals")
+      .update({
+        status: toStatus,
+        lost_reason: toStatus === "lost" ? reason ?? null : null,
+      })
+      .eq("id", deal.id);
+
+    if (user) {
+      await supabase.from("deal_status_history").insert({
+        deal_id: deal.id,
+        from_status: deal.status as "open" | "won" | "lost",
+        to_status: toStatus,
+        reason: toStatus === "lost" ? reason ?? null : null,
+        changed_by: user.id,
+      });
+    }
+
+    setBusy(false);
+    setPickingLostReason(false);
+    setLostReason("");
+    onChanged();
+  }
+
+  async function toggleFrozen() {
+    setBusy(true);
+    await supabase
+      .from("deals")
+      .update({ frozen_at: deal.frozen_at ? null : new Date().toISOString() })
+      .eq("id", deal.id);
+    setBusy(false);
+    onChanged();
+  }
+
+  if (pickingLostReason) {
+    return (
+      <Card>
+        <CardContent className="flex flex-wrap items-end gap-2 p-3">
+          <div className="flex flex-col gap-1.5">
+            <span className="text-xs text-muted-foreground">Motivo da perda</span>
+            <Select
+              value={lostReason}
+              onValueChange={(v) => setLostReason(v as LostReason)}
+            >
+              <SelectTrigger className="w-56">
+                <SelectValue placeholder="Selecione o motivo" />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(LOST_REASON_LABEL).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button
+            variant="destructive"
+            disabled={!lostReason || busy}
+            onClick={() => changeStatus("lost", lostReason as LostReason)}
+          >
+            Confirmar perda
+          </Button>
+          <Button variant="ghost" onClick={() => setPickingLostReason(false)}>
+            Cancelar
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {deal.status === "open" && (
+        <>
+          <Button
+            className="bg-success text-success-foreground hover:brightness-95"
+            disabled={busy}
+            onClick={() => changeStatus("won")}
+          >
+            Marcar como Ganho
+          </Button>
+          <Button
+            variant="destructive"
+            disabled={busy}
+            onClick={() => setPickingLostReason(true)}
+          >
+            Marcar como Perdido
+          </Button>
+          <Button variant="outline" disabled={busy} onClick={toggleFrozen}>
+            {deal.frozen_at ? "Reativar negócio" : "Congelar negócio"}
+          </Button>
+        </>
+      )}
+      {deal.status === "lost" && (
+        <Button variant="outline" disabled={busy} onClick={() => changeStatus("open")}>
+          Reabrir negócio
+        </Button>
+      )}
     </div>
   );
 }
@@ -293,103 +652,3 @@ function NotesTab({ dealId, notes }: { dealId: string; notes: Note[] }) {
   );
 }
 
-function FilesTab({
-  dealId,
-  attachments,
-}: {
-  dealId: string;
-  attachments: Attachment[];
-}) {
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const router = useRouter();
-  const supabase = createClient();
-
-  async function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    setUploadError(null);
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      setUploadError("Sessão expirada.");
-      setUploading(false);
-      return;
-    }
-
-    const storagePath = `deal/${dealId}/${uniqueSuffix()}-${file.name}`;
-    const { error: uploadErr } = await supabase.storage
-      .from("attachments")
-      .upload(storagePath, file);
-
-    if (uploadErr) {
-      setUploadError(
-        "Falha no upload. Verifique se o bucket 'attachments' existe no Supabase Storage.",
-      );
-      setUploading(false);
-      return;
-    }
-
-    await supabase.from("attachments").insert({
-      entity_type: "deal",
-      entity_id: dealId,
-      file_name: file.name,
-      storage_path: storagePath,
-      size_bytes: file.size,
-      uploaded_by: user.id,
-    });
-
-    setUploading(false);
-    if (inputRef.current) inputRef.current.value = "";
-    router.refresh();
-  }
-
-  async function download(path: string, name: string) {
-    const { data } = await supabase.storage.from("attachments").createSignedUrl(path, 60);
-    if (data?.signedUrl) {
-      const a = document.createElement("a");
-      a.href = data.signedUrl;
-      a.download = name;
-      a.click();
-    }
-  }
-
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-2">
-        <input ref={inputRef} type="file" onChange={onFileChange} disabled={uploading} />
-      </div>
-      {uploadError && <p className="text-sm text-destructive">{uploadError}</p>}
-      <div className="flex flex-col gap-2">
-        {attachments.map((a) => (
-          <Card key={a.id}>
-            <CardContent className="flex items-center justify-between p-3">
-              <span className="flex items-center gap-2 text-sm">
-                <Paperclip className="size-4 text-muted-foreground" />
-                {a.file_name}
-                <span className="text-xs text-muted-foreground">
-                  ({Math.round(a.size_bytes / 1024)} KB)
-                </span>
-              </span>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => download(a.storage_path, a.file_name)}
-              >
-                <Download className="size-4" />
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
-        {attachments.length === 0 && (
-          <p className="text-sm text-muted-foreground">Nenhum arquivo anexado.</p>
-        )}
-      </div>
-    </div>
-  );
-}
