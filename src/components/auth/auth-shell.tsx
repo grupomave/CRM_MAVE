@@ -79,7 +79,15 @@ export function AuthShell({
       </div>
 
       {/* Painel do formulário */}
-      <div className="flex min-w-0 flex-1 items-center justify-center px-6 py-12 lg:px-20">
+      <div className="relative flex min-w-0 flex-1 items-center justify-center px-6 py-12 lg:px-20">
+        <Image
+          src="/logo-lockup.png"
+          alt="Grupo Mave — Segurança e Serviços"
+          width={2542}
+          height={686}
+          className="absolute top-8 left-8 hidden h-8 w-auto lg:block"
+          priority
+        />
         <div className="w-full min-w-0 max-w-sm">
           <div className="mb-8">
             <h1 className="text-2xl font-semibold text-foreground">
