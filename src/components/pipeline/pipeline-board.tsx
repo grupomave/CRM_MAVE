@@ -5,7 +5,8 @@ import Link from "next/link";
 import {
   DndContext,
   DragOverlay,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -87,7 +88,10 @@ export function PipelineBoard({
   }
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    // Delay + tolerance no toque: um "tap-and-swipe" rapido ainda rola a
+    // pagina normalmente; so um toque mais sustentado inicia o arraste.
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
   );
 
   useEffect(() => {

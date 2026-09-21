@@ -88,7 +88,7 @@ export function DealCard({ deal }: { deal: PipelineDeal }) {
       {...listeners}
       {...attributes}
       className={cn(
-        "cursor-grab touch-none gap-0 py-0 active:cursor-grabbing",
+        "cursor-grab gap-0 py-0 active:cursor-grabbing",
         isDragging ? "opacity-40" : "",
         borderClassFor(deal),
       )}
