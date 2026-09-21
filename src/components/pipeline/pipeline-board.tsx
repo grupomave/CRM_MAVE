@@ -76,17 +76,6 @@ export function PipelineBoard({
     boardScrollRef.current?.scrollBy({ left: amount, behavior: "smooth" });
   }
 
-  function handleBoardWheel(event: React.WheelEvent<HTMLDivElement>) {
-    const el = boardScrollRef.current;
-    if (!el || el.scrollWidth <= el.clientWidth) return;
-    // Converte a rolagem vertical do mouse em rolagem horizontal do board,
-    // já que cada coluna já rola verticalmente por conta própria.
-    if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
-      event.preventDefault();
-      el.scrollLeft += event.deltaY;
-    }
-  }
-
   function handleBoardKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
     if (event.key === "ArrowRight") {
       event.preventDefault();
@@ -266,29 +255,30 @@ export function PipelineBoard({
           onDragEnd={handleDragEnd}
           onDragCancel={() => setActiveDealId(null)}
         >
-          <div className="relative min-h-0 flex-1">
-            <button
-              type="button"
-              aria-label="Rolar para a esquerda"
-              onClick={() => scrollBoardBy(-320)}
-              className="absolute top-1/2 -left-2 z-10 hidden -translate-y-1/2 rounded-full border border-border bg-card p-1.5 shadow-md hover:bg-muted md:flex"
-            >
-              <ChevronLeft className="size-4" />
-            </button>
-            <button
-              type="button"
-              aria-label="Rolar para a direita"
-              onClick={() => scrollBoardBy(320)}
-              className="absolute top-1/2 -right-2 z-10 hidden -translate-y-1/2 rounded-full border border-border bg-card p-1.5 shadow-md hover:bg-muted md:flex"
-            >
-              <ChevronRight className="size-4" />
-            </button>
+          <div className="relative">
+            <div className="sticky top-24 z-10 flex h-0 items-center justify-between overflow-visible">
+              <button
+                type="button"
+                aria-label="Rolar para a esquerda"
+                onClick={() => scrollBoardBy(-320)}
+                className="hidden -translate-y-1/2 rounded-full border border-border bg-card p-1.5 shadow-md hover:bg-muted md:flex"
+              >
+                <ChevronLeft className="size-4" />
+              </button>
+              <button
+                type="button"
+                aria-label="Rolar para a direita"
+                onClick={() => scrollBoardBy(320)}
+                className="hidden -translate-y-1/2 rounded-full border border-border bg-card p-1.5 shadow-md hover:bg-muted md:flex"
+              >
+                <ChevronRight className="size-4" />
+              </button>
+            </div>
             <div
               ref={boardScrollRef}
-              onWheel={handleBoardWheel}
               onKeyDown={handleBoardKeyDown}
               tabIndex={0}
-              className="flex max-h-[calc(100vh-320px)] min-h-[420px] gap-3 overflow-x-auto overflow-y-hidden pb-2 focus:outline-none"
+              className="flex gap-3 overflow-x-auto pb-2 focus:outline-none"
             >
               {stages.map((stage) => (
                 <PipelineColumn

@@ -44,7 +44,7 @@ export function PipelineColumn({
           )}
         </div>
       </div>
-      <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-2">
+      <div className="flex flex-col gap-2 p-2">
         {deals.map((deal) => (
           <DealCard key={deal.id} deal={deal} />
         ))}
