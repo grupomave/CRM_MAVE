@@ -366,6 +366,7 @@ export interface Database {
           avatar_url: string | null;
           is_active: boolean;
           must_change_password: boolean;
+          phone: string | null;
         };
         Insert: Partial<Database["public"]["Tables"]["profiles"]["Row"]> & {
           id: string;

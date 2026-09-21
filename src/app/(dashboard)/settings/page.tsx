@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { listUsersForAdmin, type AdminUserRow } from "@/lib/actions/users";
 import { SettingsTabs } from "./settings-tabs";
 
 export default async function SettingsPage() {
@@ -14,9 +15,21 @@ export default async function SettingsPage() {
     .eq("id", user?.id ?? "")
     .single();
 
+  const isAdmin = myProfile?.role === "admin";
+
   const [profilesRes, pipelinesRes, stagesRes, customFieldsRes, teamsRes] =
     await Promise.all([
-      supabase.from("profiles").select("id, full_name, role, team_id, is_active"),
+      // Admin ve todo mundo com e-mail (via listUsersForAdmin, que usa o
+      // client de service role); os demais papeis ficam com o que a RLS
+      // de profiles ja libera (proprio perfil, ou equipe no caso de gestor).
+      isAdmin
+        ? listUsersForAdmin()
+        : supabase
+            .from("profiles")
+            .select("id, full_name, phone, role, team_id, is_active")
+            .then(({ data }) =>
+              (data ?? []).map((p) => ({ ...p, email: null })) as AdminUserRow[],
+            ),
       supabase.from("pipelines").select("id, name, is_default"),
       supabase
         .from("pipeline_stages")
@@ -28,8 +41,6 @@ export default async function SettingsPage() {
         .order("order_index"),
       supabase.from("teams").select("id, name"),
     ]);
-
-  const isAdmin = myProfile?.role === "admin";
 
   return (
     <div className="flex flex-col gap-4">
@@ -49,7 +60,7 @@ export default async function SettingsPage() {
       )}
 
       <SettingsTabs
-        profiles={profilesRes.data ?? []}
+        profiles={profilesRes}
         pipelines={pipelinesRes.data ?? []}
         stages={stagesRes.data ?? []}
         customFields={customFieldsRes.data ?? []}

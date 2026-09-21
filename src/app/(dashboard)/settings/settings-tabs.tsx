@@ -24,12 +24,21 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
-import { createUserWithPassword, setUserActive } from "@/lib/actions/users";
+import {
+  createUserWithPassword,
+  updateUserProfile,
+  resetUserPassword,
+  setUserActive,
+  deleteUser,
+} from "@/lib/actions/users";
+import { maskPhoneBR } from "@/lib/utils";
 import type { UserRole, CustomFieldType, EntityType } from "@/lib/supabase/types";
 
 interface Profile {
   id: string;
   full_name: string;
+  email: string | null;
+  phone: string | null;
   role: UserRole;
   team_id: string | null;
   is_active: boolean;
@@ -101,6 +110,7 @@ function UsersTab({ profiles, teams }: { profiles: Profile[]; teams: Team[] }) {
   const router = useRouter();
   const supabase = createClient();
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const sorted = [...profiles].sort((a, b) => {
     if (a.is_active !== b.is_active) return a.is_active ? -1 : 1;
@@ -118,6 +128,24 @@ function UsersTab({ profiles, teams }: { profiles: Profile[]; teams: Team[] }) {
     setTogglingId(null);
   }
 
+  async function onDelete(profile: Profile) {
+    if (
+      !window.confirm(
+        `Excluir o usuário "${profile.full_name}"? Essa ação não pode ser desfeita.`,
+      )
+    )
+      return;
+
+    setDeletingId(profile.id);
+    try {
+      await deleteUser(profile.id);
+      router.refresh();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Não foi possível excluir o usuário.");
+    }
+    setDeletingId(null);
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <CreateUserDialog teams={teams} onCreated={() => router.refresh()} />
@@ -125,16 +153,22 @@ function UsersTab({ profiles, teams }: { profiles: Profile[]; teams: Team[] }) {
       <div className="flex flex-col gap-2">
         {sorted.map((p) => (
           <Card key={p.id}>
-            <CardContent className="flex items-center justify-between gap-4 p-4">
-              <span className="flex items-center gap-2 text-sm font-medium">
-                {p.full_name}
-                {!p.is_active && (
-                  <Badge variant="outline" className="text-muted-foreground">
-                    inativo
-                  </Badge>
-                )}
-              </span>
-              <div className="flex items-center gap-2">
+            <CardContent className="flex flex-wrap items-center justify-between gap-4 p-4">
+              <div className="flex flex-col gap-0.5">
+                <span className="flex items-center gap-2 text-sm font-medium">
+                  {p.full_name}
+                  {!p.is_active && (
+                    <Badge variant="outline" className="text-muted-foreground">
+                      inativo
+                    </Badge>
+                  )}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {p.email ?? "—"}
+                  {p.phone && ` · ${p.phone}`}
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
                 <Select
                   value={p.role}
                   onValueChange={async (value) => {
@@ -154,6 +188,8 @@ function UsersTab({ profiles, teams }: { profiles: Profile[]; teams: Team[] }) {
                     <SelectItem value="vendedor">Vendedor</SelectItem>
                   </SelectContent>
                 </Select>
+                <EditUserDialog profile={p} onSaved={() => router.refresh()} />
+                <ResetPasswordDialog profile={p} />
                 <Button
                   variant="outline"
                   size="sm"
@@ -161,6 +197,14 @@ function UsersTab({ profiles, teams }: { profiles: Profile[]; teams: Team[] }) {
                   onClick={() => onToggleActive(p)}
                 >
                   {p.is_active ? "Desativar" : "Ativar"}
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  disabled={deletingId === p.id}
+                  onClick={() => onDelete(p)}
+                >
+                  Excluir
                 </Button>
               </div>
             </CardContent>
@@ -176,6 +220,188 @@ function UsersTab({ profiles, teams }: { profiles: Profile[]; teams: Team[] }) {
   );
 }
 
+function EditUserDialog({
+  profile,
+  onSaved,
+}: {
+  profile: Profile;
+  onSaved?: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [fullName, setFullName] = useState(profile.full_name);
+  const [email, setEmail] = useState(profile.email ?? "");
+  const [phone, setPhone] = useState(profile.phone ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  function onOpenChange(next: boolean) {
+    if (next) {
+      setFullName(profile.full_name);
+      setEmail(profile.email ?? "");
+      setPhone(profile.phone ?? "");
+      setError(null);
+    }
+    setOpen(next);
+  }
+
+  async function onSubmit() {
+    setError(null);
+    if (!fullName.trim() || !email.trim()) {
+      setError("Preencha nome e e-mail.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await updateUserProfile({
+        profileId: profile.id,
+        fullName: fullName.trim(),
+        email: email.trim(),
+        phone: phone.trim() || null,
+      });
+      setOpen(false);
+      onSaved?.();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não foi possível salvar.");
+    }
+    setSubmitting(false);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm">
+          Editar
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Editar usuário</DialogTitle>
+        </DialogHeader>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor={`editFullName-${profile.id}`}>Nome completo</Label>
+            <Input
+              id={`editFullName-${profile.id}`}
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor={`editEmail-${profile.id}`}>E-mail</Label>
+            <Input
+              id={`editEmail-${profile.id}`}
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor={`editPhone-${profile.id}`}>Telefone</Label>
+            <Input
+              id={`editPhone-${profile.id}`}
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(maskPhoneBR(e.target.value))}
+              placeholder="(00) 00000-0000"
+            />
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+        </div>
+        <DialogFooter>
+          <Button onClick={onSubmit} disabled={submitting}>
+            {submitting ? "Salvando..." : "Salvar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ResetPasswordDialog({ profile }: { profile: Profile }) {
+  const [open, setOpen] = useState(false);
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  function onOpenChange(next: boolean) {
+    if (next) {
+      setPassword("");
+      setConfirmPassword("");
+      setError(null);
+    }
+    setOpen(next);
+  }
+
+  async function onSubmit() {
+    setError(null);
+    if (password.length < 8) {
+      setError("A senha precisa ter pelo menos 8 caracteres.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("As senhas não coincidem.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await resetUserPassword(profile.id, password);
+      setOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não foi possível redefinir a senha.");
+    }
+    setSubmitting(false);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm">
+          Redefinir senha
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Redefinir senha de {profile.full_name}</DialogTitle>
+        </DialogHeader>
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-muted-foreground">
+            O usuário precisará trocar essa senha no próximo login.
+          </p>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor={`resetPassword-${profile.id}`}>Nova senha</Label>
+            <Input
+              id={`resetPassword-${profile.id}`}
+              type="text"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor={`resetPasswordConfirm-${profile.id}`}>Confirme a senha</Label>
+            <Input
+              id={`resetPasswordConfirm-${profile.id}`}
+              type="text"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+            />
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+        </div>
+        <DialogFooter>
+          <Button onClick={onSubmit} disabled={submitting}>
+            {submitting ? "Salvando..." : "Redefinir senha"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function CreateUserDialog({
   teams,
   onCreated,
@@ -186,6 +412,7 @@ function CreateUserDialog({
   const [open, setOpen] = useState(false);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [role, setRole] = useState<UserRole>("vendedor");
   const [teamId, setTeamId] = useState<string>("");
   const [tempPassword, setTempPassword] = useState("");
@@ -208,12 +435,14 @@ function CreateUserDialog({
       await createUserWithPassword({
         email: email.trim(),
         fullName: fullName.trim(),
+        phone: phone.trim() || null,
         role,
         teamId: teamId || null,
         tempPassword,
       });
       setFullName("");
       setEmail("");
+      setPhone("");
       setTempPassword("");
       setRole("vendedor");
       setTeamId("");
@@ -251,6 +480,16 @@ function CreateUserDialog({
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="userPhone">Telefone</Label>
+            <Input
+              id="userPhone"
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(maskPhoneBR(e.target.value))}
+              placeholder="(00) 00000-0000"
             />
           </div>
           <div className="flex flex-col gap-1.5">
