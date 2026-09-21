@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   DndContext,
@@ -11,7 +11,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { KanbanSquare, List, TrendingUp } from "lucide-react";
+import { ChevronLeft, ChevronRight, KanbanSquare, List, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { NewDealDialog } from "@/components/forms/new-deal-dialog";
@@ -70,6 +70,32 @@ export function PipelineBoard({
   const [view, setView] = useState<ViewMode>("kanban");
   const [activeDealId, setActiveDealId] = useState<string | null>(null);
   const supabase = createClient();
+  const boardScrollRef = useRef<HTMLDivElement>(null);
+
+  function scrollBoardBy(amount: number) {
+    boardScrollRef.current?.scrollBy({ left: amount, behavior: "smooth" });
+  }
+
+  function handleBoardWheel(event: React.WheelEvent<HTMLDivElement>) {
+    const el = boardScrollRef.current;
+    if (!el || el.scrollWidth <= el.clientWidth) return;
+    // Converte a rolagem vertical do mouse em rolagem horizontal do board,
+    // já que cada coluna já rola verticalmente por conta própria.
+    if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
+      event.preventDefault();
+      el.scrollLeft += event.deltaY;
+    }
+  }
+
+  function handleBoardKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (event.key === "ArrowRight") {
+      event.preventDefault();
+      scrollBoardBy(320);
+    } else if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      scrollBoardBy(-320);
+    }
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -240,14 +266,38 @@ export function PipelineBoard({
           onDragEnd={handleDragEnd}
           onDragCancel={() => setActiveDealId(null)}
         >
-          <div className="flex flex-1 gap-3 overflow-x-auto pb-2">
-            {stages.map((stage) => (
-              <PipelineColumn
-                key={stage.id}
-                stage={stage}
-                deals={kanbanDeals.filter((d) => d.stage_id === stage.id)}
-              />
-            ))}
+          <div className="relative min-h-0 flex-1">
+            <button
+              type="button"
+              aria-label="Rolar para a esquerda"
+              onClick={() => scrollBoardBy(-320)}
+              className="absolute top-1/2 -left-2 z-10 hidden -translate-y-1/2 rounded-full border border-border bg-card p-1.5 shadow-md hover:bg-muted md:flex"
+            >
+              <ChevronLeft className="size-4" />
+            </button>
+            <button
+              type="button"
+              aria-label="Rolar para a direita"
+              onClick={() => scrollBoardBy(320)}
+              className="absolute top-1/2 -right-2 z-10 hidden -translate-y-1/2 rounded-full border border-border bg-card p-1.5 shadow-md hover:bg-muted md:flex"
+            >
+              <ChevronRight className="size-4" />
+            </button>
+            <div
+              ref={boardScrollRef}
+              onWheel={handleBoardWheel}
+              onKeyDown={handleBoardKeyDown}
+              tabIndex={0}
+              className="flex max-h-[calc(100vh-320px)] min-h-[420px] gap-3 overflow-x-auto overflow-y-hidden pb-2 focus:outline-none"
+            >
+              {stages.map((stage) => (
+                <PipelineColumn
+                  key={stage.id}
+                  stage={stage}
+                  deals={kanbanDeals.filter((d) => d.stage_id === stage.id)}
+                />
+              ))}
+            </div>
           </div>
           <DragOverlay>
             {activeDeal ? <DealCardOverlay deal={activeDeal} /> : null}
