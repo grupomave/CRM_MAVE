@@ -6,6 +6,7 @@ import { Building2, Clock, AlertTriangle, Snowflake } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatCurrencyBRL, initials, cn } from "@/lib/utils";
 import type { PipelineDeal } from "./types";
 
@@ -67,11 +68,16 @@ function DealCardContent({ deal }: { deal: PipelineDeal }) {
         </div>
       )}
       <div className="flex items-center justify-end">
-        <Avatar className="size-6">
-          <AvatarFallback className="text-[10px]">
-            {initials(deal.owner_name)}
-          </AvatarFallback>
-        </Avatar>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Avatar className="size-6">
+              <AvatarFallback className="text-[10px]">
+                {initials(deal.owner_name)}
+              </AvatarFallback>
+            </Avatar>
+          </TooltipTrigger>
+          <TooltipContent>{deal.owner_name}</TooltipContent>
+        </Tooltip>
       </div>
     </CardContent>
   );
