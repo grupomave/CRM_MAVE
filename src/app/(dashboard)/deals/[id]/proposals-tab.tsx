@@ -168,7 +168,7 @@ function NewProposalForm({
   return (
     <Card>
       <CardContent className="flex flex-col gap-3 p-4">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
             <Label>Valor</Label>
             <Input type="number" step="0.01" value={value} onChange={(e) => setValue(e.target.value)} />
@@ -418,7 +418,7 @@ function NewVersionForm({
 
   return (
     <div className="flex flex-col gap-2 rounded-md border border-border p-3">
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <Input
           type="number"
           step="0.01"

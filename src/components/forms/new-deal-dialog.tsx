@@ -253,7 +253,7 @@ export function NewDealDialog({
             <Input id="value" type="number" step="0.01" {...register("value")} />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <Label>Funil</Label>
               <Select
@@ -391,7 +391,7 @@ export function NewDealDialog({
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="source">Origem</Label>
               <Input id="source" {...register("source")} placeholder="Indicação, site..." />
