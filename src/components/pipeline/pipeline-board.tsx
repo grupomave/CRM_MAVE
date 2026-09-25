@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { SimpleTooltip } from "@/components/ui/tooltip";
 import { NewDealDialog } from "@/components/forms/new-deal-dialog";
+import { ExportExcelButton } from "@/components/list/export-excel-button";
 import { useListParams } from "@/components/list/use-list-params";
 import { BulkActionBar, useRowSelection } from "@/components/list/bulk-action-bar";
 import { BulkOwnerButton } from "@/components/list/bulk-owner-dialog";
@@ -209,6 +210,7 @@ export function PipelineBoard({
         actions={
           <>
             <PipelineSwitcher pipelines={pipelines} selectedPipelineId={selectedPipelineId} />
+            <ExportExcelButton entity="negocios" />
             {newDealButton}
           </>
         }

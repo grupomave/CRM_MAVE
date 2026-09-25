@@ -6,6 +6,7 @@ import {
   loadOwners,
 } from "@/lib/data/lists";
 import { PageHeader } from "@/components/ui/page-header";
+import { ExportExcelButton } from "@/components/list/export-excel-button";
 import { OrganizationsToolbar } from "./organizations-toolbar";
 import { OrganizationsList } from "./organizations-list";
 
@@ -21,7 +22,12 @@ export default async function OrganizationsPage() {
       <PageHeader
         title="Organizações"
         description="Empresas clientes e prospects"
-        actions={<OrganizationsToolbar />}
+        actions={
+          <>
+            <ExportExcelButton entity="organizacoes" />
+            <OrganizationsToolbar />
+          </>
+        }
       />
 
       <OrganizationsList

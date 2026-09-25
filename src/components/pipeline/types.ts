@@ -15,7 +15,9 @@ export interface PipelineDeal {
   source: string | null;
   status: "open" | "won" | "lost";
   expected_close_date: string | null;
+  created_at: string;
   updated_at: string;
+  closed_at: string | null;
   organization_name: string | null;
   contact_name: string | null;
   owner_name: string;

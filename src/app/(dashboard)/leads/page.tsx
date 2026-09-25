@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { canReassignOwner, getCurrentUser, loadLeadRows, loadOwners } from "@/lib/data/lists";
 import { PageHeader } from "@/components/ui/page-header";
+import { ExportExcelButton } from "@/components/list/export-excel-button";
 import { LeadsToolbar } from "./leads-toolbar";
 import { LeadsList } from "./leads-list";
 
@@ -16,7 +17,12 @@ export default async function LeadsPage() {
       <PageHeader
         title="Leads"
         description="Caixa de entrada de leads não qualificados"
-        actions={<LeadsToolbar />}
+        actions={
+          <>
+            <ExportExcelButton entity="leads" />
+            <LeadsToolbar />
+          </>
+        }
       />
 
       <LeadsList leads={leads} owners={owners} canReassign={canReassignOwner(me?.role)} />

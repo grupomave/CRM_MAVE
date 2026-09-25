@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { canReassignOwner, getCurrentUser, loadOwners, loadPersonRows } from "@/lib/data/lists";
 import { PageHeader } from "@/components/ui/page-header";
+import { ExportExcelButton } from "@/components/list/export-excel-button";
 import { PeopleToolbar } from "./people-toolbar";
 import { PeopleList } from "./people-list";
 
@@ -16,7 +17,12 @@ export default async function PeoplePage() {
       <PageHeader
         title="Pessoas"
         description="Contatos individuais"
-        actions={<PeopleToolbar />}
+        actions={
+          <>
+            <ExportExcelButton entity="pessoas" />
+            <PeopleToolbar />
+          </>
+        }
       />
 
       <PeopleList contacts={contacts} owners={owners} canReassign={canReassignOwner(me?.role)} />
