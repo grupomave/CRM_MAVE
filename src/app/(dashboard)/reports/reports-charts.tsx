@@ -22,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { AXIS_PROPS, CURSOR, ChartTooltip, GRID_STROKE, LEGEND_PROPS, LINE_CURSOR } from "@/components/charts/chart-theme";
 
 const compactBRL = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -33,7 +34,7 @@ const compactBRL = new Intl.NumberFormat("pt-BR", {
 // Cores seguem o token de cada entidade (nunca por índice/rank), como pedido
 // pela skill de dataviz: Ganho e Perdido usam sempre as mesmas cores de
 // status usadas no resto do app (badges, botões de ação do negócio).
-const PRIMARY = "var(--color-primary)";
+const PRIMARY = "var(--color-chart-1)";
 const SUCCESS = "var(--color-success)";
 const DESTRUCTIVE = "var(--color-destructive)";
 
@@ -48,10 +49,10 @@ export function StatTile({
 }) {
   return (
     <Card>
-      <CardContent className="flex flex-col gap-1 p-4">
-        <span className="text-xs text-muted-foreground">{label}</span>
-        <span className="text-2xl font-semibold text-foreground">{value}</span>
-        {sub && <span className="text-xs text-muted-foreground">{sub}</span>}
+      <CardContent className="flex flex-col gap-1 p-5">
+        <span className="text-sm font-medium text-muted-foreground">{label}</span>
+        <span className="numeric text-display text-foreground">{value}</span>
+        {sub && <span className="text-caption text-muted-foreground">{sub}</span>}
       </CardContent>
     </Card>
   );
@@ -71,10 +72,10 @@ export function StageFunnelChart({
       <CardContent style={{ height }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} layout="vertical" margin={{ left: 24 }}>
-            <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-            <XAxis type="number" tickFormatter={(v) => formatCurrencyBRL(v)} />
-            <YAxis type="category" dataKey="stage" width={120} />
-            <Tooltip formatter={(v) => formatCurrencyBRL(Number(v))} />
+            <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" horizontal={false} />
+            <XAxis {...AXIS_PROPS} type="number" tickFormatter={(v) => formatCurrencyBRL(v)} />
+            <YAxis {...AXIS_PROPS} type="category" dataKey="stage" width={120} />
+            <Tooltip cursor={CURSOR} content={<ChartTooltip valueFormatter={formatCurrencyBRL} />} />
             <Bar dataKey="total" fill={PRIMARY} radius={[0, 4, 4, 0]} />
           </BarChart>
         </ResponsiveContainer>
@@ -96,11 +97,11 @@ export function MonthlyTrendChart({
       <CardContent className="h-72">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-            <XAxis dataKey="month" />
-            <YAxis allowDecimals={false} />
-            <Tooltip />
-            <Legend />
+            <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" vertical={false} />
+            <XAxis {...AXIS_PROPS} dataKey="month" />
+            <YAxis {...AXIS_PROPS} allowDecimals={false} />
+            <Tooltip cursor={LINE_CURSOR} content={<ChartTooltip />} />
+            <Legend {...LEGEND_PROPS} />
             <Line
               type="monotone"
               dataKey="criados"
@@ -145,10 +146,10 @@ export function OwnerWonChart({
       <CardContent className="h-72">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ left: 12 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-            <XAxis dataKey="owner" />
-            <YAxis tickFormatter={(v) => compactBRL.format(v)} width={72} />
-            <Tooltip formatter={(v) => formatCurrencyBRL(Number(v))} />
+            <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" vertical={false} />
+            <XAxis {...AXIS_PROPS} dataKey="owner" />
+            <YAxis {...AXIS_PROPS} tickFormatter={(v) => compactBRL.format(v)} width={72} />
+            <Tooltip cursor={CURSOR} content={<ChartTooltip valueFormatter={formatCurrencyBRL} />} />
             <Bar dataKey="won" fill={SUCCESS} radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
@@ -171,10 +172,10 @@ export function LossReasonsChart({
       <CardContent style={{ height }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} layout="vertical" margin={{ left: 24 }}>
-            <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-            <XAxis type="number" allowDecimals={false} />
-            <YAxis type="category" dataKey="reason" width={140} />
-            <Tooltip />
+            <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" horizontal={false} />
+            <XAxis {...AXIS_PROPS} type="number" allowDecimals={false} />
+            <YAxis {...AXIS_PROPS} type="category" dataKey="reason" width={140} />
+            <Tooltip cursor={CURSOR} content={<ChartTooltip />} />
             <Bar dataKey="total" fill={DESTRUCTIVE} radius={[0, 4, 4, 0]} />
           </BarChart>
         </ResponsiveContainer>
@@ -196,10 +197,10 @@ export function LossByOwnerChart({
       <CardContent className="h-72">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ left: 12 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-            <XAxis dataKey="owner" />
-            <YAxis tickFormatter={(v) => compactBRL.format(v)} width={72} />
-            <Tooltip formatter={(v) => formatCurrencyBRL(Number(v))} />
+            <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" vertical={false} />
+            <XAxis {...AXIS_PROPS} dataKey="owner" />
+            <YAxis {...AXIS_PROPS} tickFormatter={(v) => compactBRL.format(v)} width={72} />
+            <Tooltip cursor={CURSOR} content={<ChartTooltip valueFormatter={formatCurrencyBRL} />} />
             <Bar dataKey="lost" fill={DESTRUCTIVE} radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>

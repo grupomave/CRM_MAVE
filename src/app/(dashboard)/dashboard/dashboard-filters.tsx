@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/masked-inputs";
 import {
   Select,
   SelectContent,
@@ -42,7 +42,7 @@ export function DashboardFilters({
   return (
     <div className="flex flex-wrap items-end gap-2">
       <div className="flex flex-col gap-1">
-        <label className="text-xs text-muted-foreground">Funil</label>
+        <label className="text-caption font-medium text-muted-foreground">Funil</label>
         <Select value={pipelineId} onValueChange={(v) => update({ pipeline: v })}>
           <SelectTrigger className="w-52">
             <SelectValue />
@@ -58,22 +58,22 @@ export function DashboardFilters({
       </div>
 
       <div className="flex flex-col gap-1">
-        <label className="text-xs text-muted-foreground">Período de</label>
-        <Input
-          type="date"
+        <label className="text-caption font-medium text-muted-foreground">Período de</label>
+        <DateInput
           value={from}
-          onChange={(e) => update({ from: e.target.value })}
-          className="w-40"
+          onValueChange={(iso) => iso && update({ from: iso })}
+          className="w-36"
+          aria-label={"Início do período"}
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label className="text-xs text-muted-foreground">até</label>
-        <Input
-          type="date"
+        <label className="text-caption font-medium text-muted-foreground">até</label>
+        <DateInput
           value={to}
-          onChange={(e) => update({ to: e.target.value })}
-          className="w-40"
+          onValueChange={(iso) => iso && update({ to: iso })}
+          className="w-36"
+          aria-label={"Fim do período"}
         />
       </div>
     </div>

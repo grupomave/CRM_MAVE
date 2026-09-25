@@ -18,8 +18,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { AXIS_PROPS, CURSOR, ChartTooltip, GRID_STROKE } from "@/components/charts/chart-theme";
 
-const PRIMARY = "var(--color-primary)";
+const PRIMARY = "var(--color-chart-1)";
 
 const STATUS_ORDER = ["Novo", "Contatado", "Qualificado", "Convertido", "Desqualificado"];
 
@@ -42,10 +43,10 @@ export function LeadsStatusChart({
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={ordered} margin={{ left: 12 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="status" />
-              <YAxis allowDecimals={false} />
-              <Tooltip />
+              <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" vertical={false} />
+              <XAxis {...AXIS_PROPS} dataKey="status" />
+              <YAxis {...AXIS_PROPS} allowDecimals={false} />
+              <Tooltip cursor={CURSOR} content={<ChartTooltip />} />
               <Bar dataKey="total" fill={PRIMARY} radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>

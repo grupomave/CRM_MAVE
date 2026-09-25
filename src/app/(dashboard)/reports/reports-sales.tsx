@@ -19,6 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { AXIS_PROPS, CURSOR, ChartTooltip, GRID_STROKE } from "@/components/charts/chart-theme";
 
 const SUCCESS = "var(--color-success)";
 
@@ -78,10 +79,10 @@ export function RegionSalesChart({
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} layout="vertical" margin={{ left: 24 }}>
-              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-              <XAxis type="number" tickFormatter={(v) => formatCurrencyBRL(v)} />
-              <YAxis type="category" dataKey="region" width={100} />
-              <Tooltip formatter={(v) => formatCurrencyBRL(Number(v))} />
+              <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" horizontal={false} />
+              <XAxis {...AXIS_PROPS} type="number" tickFormatter={(v) => formatCurrencyBRL(v)} />
+              <YAxis {...AXIS_PROPS} type="category" dataKey="region" width={100} />
+              <Tooltip cursor={CURSOR} content={<ChartTooltip valueFormatter={formatCurrencyBRL} />} />
               <Bar dataKey="value" fill={SUCCESS} radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>

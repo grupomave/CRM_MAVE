@@ -261,7 +261,7 @@ function ProposalCard({
       <CardContent className="flex flex-col gap-3 p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <span className="text-lg font-semibold text-primary">
+            <span className="numeric text-subtitle text-primary">
               {formatCurrencyBRL(latest?.value ?? 0)}
             </span>
             <Badge variant="outline">v{latest?.version_number ?? 1}</Badge>

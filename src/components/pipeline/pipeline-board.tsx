@@ -322,7 +322,7 @@ export function PipelineBoard({
             ([month, group]) => (
               <div key={month} className="rounded-lg border border-border p-4">
                 <h4 className="text-sm font-semibold capitalize">{month}</h4>
-                <p className="mt-1 text-lg font-bold text-primary">
+                <p className="numeric mt-1 text-subtitle text-primary">
                   {formatCurrencyBRL(group.reduce((s, d) => s + d.value, 0))}
                 </p>
                 <p className="text-xs text-muted-foreground">

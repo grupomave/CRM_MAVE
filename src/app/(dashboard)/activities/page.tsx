@@ -67,14 +67,14 @@ export default async function ActivitiesPage() {
       <div className="grid grid-cols-2 gap-3 sm:w-96">
         <Card>
           <CardContent className="flex flex-col gap-1 p-4">
-            <span className="text-xs text-muted-foreground">Hoje</span>
-            <span className="text-2xl font-semibold text-foreground">{todayCount}</span>
+            <span className="text-sm font-medium text-muted-foreground">Hoje</span>
+            <span className="numeric text-display text-foreground">{todayCount}</span>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="flex flex-col gap-1 p-4">
-            <span className="text-xs text-muted-foreground">Atrasadas</span>
-            <span className="text-2xl font-semibold text-destructive">{overdueCount}</span>
+            <span className="text-sm font-medium text-muted-foreground">Atrasadas</span>
+            <span className="numeric text-display text-destructive">{overdueCount}</span>
           </CardContent>
         </Card>
       </div>
