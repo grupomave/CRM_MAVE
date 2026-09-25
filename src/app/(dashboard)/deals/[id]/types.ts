@@ -37,6 +37,9 @@ export interface ActivityItem {
   subject: string;
   due_date: string | null;
   done: boolean;
+  created_at: string;
+  /** Calculado no servidor a cada carregamento */
+  overdue: boolean;
 }
 
 export interface Option {

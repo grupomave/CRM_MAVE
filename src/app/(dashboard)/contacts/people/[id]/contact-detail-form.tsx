@@ -12,7 +12,7 @@ import { confirmDialog } from "@/components/ui/confirm-dialog";
 import { createClient } from "@/lib/supabase/client";
 import { friendlyError, toast } from "@/lib/toast";
 import { WhatsAppButton } from "@/components/whatsapp-button";
-import { isValidPhoneBR, maskPhoneBR } from "@/lib/masks";
+import { isValidPhoneBR, maskPhoneInput } from "@/lib/masks";
 
 interface Contact {
   id: string;
@@ -52,16 +52,28 @@ export function ContactDetailForm({
 
   const errors = {
     name: !form.name.trim() ? "Informe o nome" : undefined,
-    email: form.email && !EMAIL_RE.test(form.email) ? "E-mail inválido" : undefined,
-    phone: form.phone && !isValidPhoneBR(form.phone) ? "Telefone incompleto — use DDD + número" : undefined,
-    whatsapp: form.whatsapp && !isValidPhoneBR(form.whatsapp) ? "WhatsApp incompleto — use DDD + número" : undefined,
+    // Só valida o que o usuário alterou: dados importados do Pipedrive não
+    // podem impedir salvar outros campos.
+    email:
+      form.email !== contact.email && form.email && !EMAIL_RE.test(form.email) ? "E-mail inválido" : undefined,
+    phone:
+      form.phone !== contact.phone && form.phone && !isValidPhoneBR(form.phone)
+        ? "Telefone incompleto — use DDD + número"
+        : undefined,
+    whatsapp:
+      form.whatsapp !== contact.whatsapp && form.whatsapp && !isValidPhoneBR(form.whatsapp)
+        ? "WhatsApp incompleto — use DDD + número"
+        : undefined,
   };
   const hasErrors = Object.values(errors).some(Boolean);
   const dirty = JSON.stringify(form) !== JSON.stringify(contact);
 
   async function onSave() {
     setTouched(true);
-    if (hasErrors) return;
+    if (hasErrors) {
+      toast.error("Corrija os campos destacados antes de salvar");
+      return;
+    }
     setSaving(true);
     const supabase = createClient();
     const { id, ...rest } = form;
@@ -140,8 +152,8 @@ export function ContactDetailForm({
               <Input
                 id="person-phone"
                 inputMode="tel"
-                value={maskPhoneBR(form.phone ?? "")}
-                onChange={(e) => set("phone", maskPhoneBR(e.target.value) || null)}
+                value={form.phone ?? ""}
+                onChange={(e) => set("phone", maskPhoneInput(e.target.value) || null)}
                 placeholder="(00) 00000-0000"
                 aria-invalid={errors.phone ? true : undefined}
               />
@@ -153,8 +165,8 @@ export function ContactDetailForm({
               <Input
                 id="person-whatsapp"
                 inputMode="tel"
-                value={maskPhoneBR(form.whatsapp ?? "")}
-                onChange={(e) => set("whatsapp", maskPhoneBR(e.target.value) || null)}
+                value={form.whatsapp ?? ""}
+                onChange={(e) => set("whatsapp", maskPhoneInput(e.target.value) || null)}
                 placeholder="(00) 00000-0000"
                 aria-invalid={errors.whatsapp ? true : undefined}
               />

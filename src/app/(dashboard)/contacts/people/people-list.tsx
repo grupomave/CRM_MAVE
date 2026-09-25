@@ -106,6 +106,7 @@ export function PeopleList({
       <Table stickyHeader>
         <TableHeader>
           <TableRow>
+            {canReassign && (
             <TableHead className="w-10">
               <Checkbox
                 aria-label="Selecionar todos desta página"
@@ -114,6 +115,7 @@ export function PeopleList({
                 disabled={pageIds.length === 0}
               />
             </TableHead>
+            )}
             <SortableHead sortKey="name" sort={filters.sort} onSort={onSort}>
               Nome
             </SortableHead>
@@ -137,6 +139,7 @@ export function PeopleList({
             const isSelected = selection.selected.has(c.id);
             return (
               <TableRow key={c.id} data-state={isSelected ? "selected" : undefined}>
+                {canReassign && (
                 <TableCell>
                   <Checkbox
                     aria-label={`Selecionar ${c.name}`}
@@ -144,6 +147,7 @@ export function PeopleList({
                     onCheckedChange={(checked) => selection.toggle(c.id, checked === true)}
                   />
                 </TableCell>
+                )}
                 <TableCell>
                   <Link href={`/contacts/people/${c.id}`} className="group/link flex min-w-40 flex-col">
                     <span className="font-medium group-hover/link:text-primary group-hover/link:underline">
@@ -221,7 +225,7 @@ export function PeopleList({
           })}
           {current.rows.length === 0 && (
             <TableRow className="hover:bg-transparent">
-              <TableCell colSpan={7}>
+              <TableCell colSpan={canReassign ? 7 : 6}>
                 <EmptyState
                   icon={Users}
                   title={contacts.length === 0 ? "Nenhuma pessoa cadastrada" : "Nenhuma pessoa encontrada"}

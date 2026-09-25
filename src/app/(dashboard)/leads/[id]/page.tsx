@@ -3,6 +3,13 @@ import { createClient } from "@/lib/supabase/server";
 import { LeadDetailForm } from "./lead-detail-form";
 import { PageHeader } from "@/components/ui/page-header";
 
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const supabase = await createClient();
+  const { data } = await supabase.from("leads").select("name").eq("id", id).maybeSingle();
+  return { title: data?.name ?? "Lead" };
+}
+
 export default async function LeadDetailPage({
   params,
 }: {

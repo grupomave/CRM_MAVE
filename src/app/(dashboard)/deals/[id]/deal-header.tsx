@@ -56,6 +56,7 @@ export function DealHeader({
   stages,
   stageDays,
   daysInCurrent,
+  daysSinceLastActivity,
   alerts,
   canManage,
   reportData,
@@ -65,6 +66,7 @@ export function DealHeader({
   stages: StageOption[];
   stageDays: Record<string, number>;
   daysInCurrent: number;
+  daysSinceLastActivity: number | null;
   alerts: DealAlerts;
   canManage: boolean;
   reportData: ComponentProps<typeof DealReportButton>["data"];
@@ -78,7 +80,7 @@ export function DealHeader({
   const isOpen = deal.status === "open";
 
   async function moveToStage(stageId: string) {
-    if (stageId === deal.stage_id || !isOpen || busy) return;
+    if (stageId === deal.stage_id || busy) return;
     setBusy(true);
     const supabase = createClient();
     const { error } = await supabase.from("deals").update({ stage_id: stageId }).eq("id", deal.id);
@@ -91,12 +93,13 @@ export function DealHeader({
       data: { user },
     } = await supabase.auth.getUser();
     if (user) {
-      await supabase.from("deal_stage_history").insert({
+      const { error: historyError } = await supabase.from("deal_stage_history").insert({
         deal_id: deal.id,
         from_stage_id: deal.stage_id,
         to_stage_id: stageId,
         changed_by: user.id,
       });
+      if (historyError) toast.warning("Etapa alterada, mas o histórico não foi registrado");
     }
     setBusy(false);
     toast.success(`Movido para ${stages.find((s) => s.id === stageId)?.name}`);
@@ -119,13 +122,14 @@ export function DealHeader({
       data: { user },
     } = await supabase.auth.getUser();
     if (user) {
-      await supabase.from("deal_status_history").insert({
+      const { error: historyError } = await supabase.from("deal_status_history").insert({
         deal_id: deal.id,
         from_status: deal.status,
         to_status: toStatus,
         reason: toStatus === "lost" ? (reason ?? null) : null,
         changed_by: user.id,
       });
+      if (historyError) toast.warning("Status alterado, mas o histórico não foi registrado");
     }
     setBusy(false);
     setLostOpen(false);
@@ -213,7 +217,9 @@ export function DealHeader({
             {isOpen && alerts.isStagnant && (
               <Badge variant="stagnant">
                 <Snowflake />
-                Estagnado há {daysInCurrent} {daysInCurrent === 1 ? "dia" : "dias"}
+                Estagnado
+                {daysSinceLastActivity !== null &&
+                  ` · sem atividade há ${daysSinceLastActivity} ${daysSinceLastActivity === 1 ? "dia" : "dias"}`}
               </Badge>
             )}
           </div>
@@ -296,14 +302,14 @@ export function DealHeader({
                 >
                   <button
                     type="button"
-                    disabled={!isOpen || busy}
+                    disabled={busy}
                     aria-current={current ? "step" : undefined}
                     onClick={() => moveToStage(stage.id)}
                     className={cn(
                       "flex h-8 w-full items-center justify-center truncate px-4 text-caption font-medium transition-colors disabled:cursor-default",
                       index === 0 ? "chevron-step-first rounded-l-md" : "chevron-step",
                       current && "bg-primary text-primary-foreground",
-                      passed && "bg-primary/75 text-primary-foreground hover:bg-primary",
+                      passed && "bg-primary-subtle text-primary enabled:hover:bg-primary enabled:hover:text-primary-foreground",
                       !passed && !current && "bg-muted text-muted-foreground enabled:hover:bg-border enabled:hover:text-foreground",
                       deal.status === "won" && "bg-success text-success-foreground",
                     )}

@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { DEAL_STATUS_LABEL, LOST_REASON_LABEL } from "@/lib/supabase/types";
 import { computeDealAlerts } from "@/lib/deal-alerts";
-import { computeStageDays, daysSince } from "@/lib/deal-metrics";
+import { computeStageDays, daysSince, withOverdue } from "@/lib/deal-metrics";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { getCurrentUser } from "@/lib/data/lists";
 import { DealHeader } from "./deal-header";
@@ -77,7 +77,7 @@ export default async function DealDetailPage({
       .order("order_index"),
     supabase
       .from("activities")
-      .select("id, type, subject, due_date, done")
+      .select("id, type, subject, due_date, done, created_at")
       .eq("deal_id", id)
       .order("due_date", { ascending: true, nullsFirst: false }),
     supabase
@@ -129,7 +129,7 @@ export default async function DealDetailPage({
     : { data: [] as unknown[] };
 
   const stages = (stagesRes.data ?? []) as StageOption[];
-  const activities = (activitiesRes.data ?? []) as ActivityItem[];
+  const activities: ActivityItem[] = withOverdue((activitiesRes.data ?? []) as Omit<ActivityItem, "overdue">[]);
   const stageNameById = new Map(stages.map((s) => [s.id, s.name]));
   const stageHistory = (stageHistoryRes.data ?? []) as unknown as {
     id: string;
@@ -181,7 +181,7 @@ export default async function DealDetailPage({
         kind: "activity" as const,
         title: `${ACTIVITY_TYPE_LABEL[a.type] ?? a.type} concluída`,
         body: a.subject,
-        at: a.due_date ?? deal.created_at,
+        at: a.due_date ?? a.created_at,
         actor: null,
       })),
     ...stageHistory.map((h) => ({
@@ -269,6 +269,7 @@ export default async function DealDetailPage({
         stages={stages}
         stageDays={Object.fromEntries(stageDays)}
         daysInCurrent={daysInCurrent}
+        daysSinceLastActivity={daysSince(deal.last_activity_at)}
         alerts={alerts}
         canManage={canManage}
         reportData={{

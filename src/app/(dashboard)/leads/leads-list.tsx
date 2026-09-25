@@ -87,7 +87,16 @@ export function LeadsList({
   if (filters.owner)
     chips.push({ key: "owner", label: `Responsável: ${ownerName(filters.owner)}`, onRemove: () => update({ owner: null }) });
 
-  async function setStatus(ids: string[], status: LeadStatus) {
+  async function setStatus(requested: string[], status: LeadStatus) {
+    // Lead convertido já virou negócio: voltar o status permitiria
+    // convertê-lo de novo e duplicar o negócio.
+    const convertedIds = new Set(leads.filter((l) => l.status === "converted").map((l) => l.id));
+    const ids = requested.filter((id) => !convertedIds.has(id));
+    const skipped = requested.length - ids.length;
+    if (ids.length === 0) {
+      toast.warning("Leads convertidos não podem mudar de status");
+      return;
+    }
     const supabase = createClient();
     const { data, error } = await supabase.from("leads").update({ status }).in("id", ids).select("id");
     if (error) {
@@ -96,6 +105,9 @@ export function LeadsList({
     }
     toast.success(
       `${data?.length ?? 0} ${data?.length === 1 ? "lead marcado" : "leads marcados"} como ${LEAD_STATUS_LABEL[status].toLowerCase()}`,
+      skipped > 0
+        ? { description: `${skipped} ${skipped === 1 ? "lead convertido foi ignorado" : "leads convertidos foram ignorados"}.` }
+        : undefined,
     );
     selection.clear();
     router.refresh();

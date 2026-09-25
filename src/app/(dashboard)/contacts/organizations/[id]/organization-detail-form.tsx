@@ -19,7 +19,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { friendlyError, toast } from "@/lib/toast";
 import { WhatsAppButton } from "@/components/whatsapp-button";
-import { BR_STATES, isValidCNPJ, isValidPhoneBR, maskCNPJ, maskPhoneBR } from "@/lib/masks";
+import { BR_STATES, isValidCNPJ, isValidPhoneBR, maskCNPJ, maskPhoneInput } from "@/lib/masks";
 
 const NONE = "__none__";
 
@@ -60,15 +60,26 @@ export function OrganizationDetailForm({
 
   const errors = {
     name: !form.name.trim() ? "Informe o nome fantasia" : undefined,
-    cnpj: form.cnpj && !isValidCNPJ(form.cnpj) ? "CNPJ inválido — confira os dígitos" : undefined,
-    phone: form.phone && !isValidPhoneBR(form.phone) ? "Telefone incompleto — use DDD + número" : undefined,
+    // Só valida o que o usuário alterou: dados importados (ex.: telefone com
+    // DDI ou CNPJ antigo) não podem impedir salvar outros campos.
+    cnpj:
+      form.cnpj !== organization.cnpj && form.cnpj && !isValidCNPJ(form.cnpj)
+        ? "CNPJ inválido — confira os dígitos"
+        : undefined,
+    phone:
+      form.phone !== organization.phone && form.phone && !isValidPhoneBR(form.phone)
+        ? "Telefone incompleto — use DDD + número"
+        : undefined,
   };
   const hasErrors = Object.values(errors).some(Boolean);
   const dirty = JSON.stringify(form) !== JSON.stringify(organization);
 
   async function onSave() {
     setTouched(true);
-    if (hasErrors) return;
+    if (hasErrors) {
+      toast.error("Corrija os campos destacados antes de salvar");
+      return;
+    }
     setSaving(true);
     const supabase = createClient();
     const { id, ...rest } = form;
@@ -161,8 +172,8 @@ export function OrganizationDetailForm({
               <Input
                 id="org-phone"
                 inputMode="tel"
-                value={maskPhoneBR(form.phone ?? "")}
-                onChange={(e) => set("phone", maskPhoneBR(e.target.value) || null)}
+                value={form.phone ?? ""}
+                onChange={(e) => set("phone", maskPhoneInput(e.target.value) || null)}
                 placeholder="(00) 00000-0000"
                 aria-invalid={errors.phone ? true : undefined}
               />

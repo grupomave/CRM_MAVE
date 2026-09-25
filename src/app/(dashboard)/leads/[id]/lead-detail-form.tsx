@@ -153,18 +153,24 @@ export function LeadDetailForm({
       return;
     }
 
-    await supabase.from("notes").insert({
-      deal_id: deal.id,
-      author_id: lead.owner_id,
-      content: `Convertido do lead "${lead.name}"${form.contact_info ? ` — contato: ${form.contact_info}` : ""}.`,
-    });
+    const [{ error: noteError }, { error: leadError }] = await Promise.all([
+      supabase.from("notes").insert({
+        deal_id: deal.id,
+        author_id: lead.owner_id,
+        content: `Convertido do lead "${lead.name}"${form.contact_info ? ` — contato: ${form.contact_info}` : ""}.`,
+      }),
+      supabase.from("leads").update({ status: "converted", converted_deal_id: deal.id }).eq("id", lead.id),
+    ]);
 
-    await supabase
-      .from("leads")
-      .update({ status: "converted", converted_deal_id: deal.id })
-      .eq("id", lead.id);
-
-    toast.success("Lead convertido em negócio");
+    if (leadError) {
+      toast.warning("Negócio criado, mas o lead não foi marcado como convertido", {
+        description: "Marque o status do lead manualmente para evitar duplicidade.",
+      });
+    } else if (noteError) {
+      toast.warning("Lead convertido, mas a anotação de origem não foi salva");
+    } else {
+      toast.success("Lead convertido em negócio");
+    }
     router.push(`/deals/${deal.id}`);
   }
 

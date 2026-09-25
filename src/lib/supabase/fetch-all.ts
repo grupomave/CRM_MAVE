@@ -11,7 +11,16 @@ export async function fetchAllRows<T>(
 
   while (true) {
     const { data, error } = await queryPage(from, from + pageSize - 1);
-    if (error || !data) break;
+    // Um erro não pode virar "lista vazia" silenciosa: sobe para o error.tsx
+    // da rota, que mostra a tela de erro com "Tentar novamente".
+    if (error) {
+      const message =
+        typeof error === "object" && error !== null && "message" in error
+          ? String((error as { message: unknown }).message)
+          : String(error);
+      throw new Error(`Falha ao carregar dados: ${message}`);
+    }
+    if (!data) break;
     rows.push(...data);
     if (data.length < pageSize) break;
     from += pageSize;

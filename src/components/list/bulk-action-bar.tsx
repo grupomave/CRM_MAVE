@@ -67,6 +67,7 @@ export function BulkActionBar({
       role="region"
       aria-label="Ações em massa"
       aria-hidden={!visible}
+      inert={!visible}
       className={cn(
         "fixed inset-x-0 bottom-4 z-40 mx-auto flex w-[calc(100%-2rem)] max-w-2xl flex-wrap items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 shadow-lg transition-all duration-200",
         visible ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-4 opacity-0",

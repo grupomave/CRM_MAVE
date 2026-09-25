@@ -84,9 +84,17 @@ export function isValidCNPJ(value: string) {
   return calc(12) === Number(d[12]) && calc(13) === Number(d[13]);
 }
 
+// Aceita DDD + número (10/11 dígitos) ou com o DDI 55 na frente (12/13),
+// formato comum nos telefones importados do Pipedrive.
 export function isValidPhoneBR(value: string) {
   const d = onlyDigits(value);
-  return d.length === 10 || d.length === 11;
+  return d.length === 10 || d.length === 11 || ((d.length === 12 || d.length === 13) && d.startsWith("55"));
+}
+
+// Máscara ao digitar que não destrói números internacionais: se o usuário
+// começar com "+", o valor fica como digitado.
+export function maskPhoneInput(value: string) {
+  return value.trimStart().startsWith("+") ? value : maskPhoneBR(value);
 }
 
 // ---- Datas dd/mm/aaaa <-> ISO (aaaa-mm-dd) ------------------------------

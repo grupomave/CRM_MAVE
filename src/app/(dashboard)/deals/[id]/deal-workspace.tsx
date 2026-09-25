@@ -83,7 +83,6 @@ export function DealWorkspace({
   const [note, setNote] = useState("");
   const [savingNote, setSavingNote] = useState(false);
   const [timelineFilter, setTimelineFilter] = useState<(typeof TIMELINE_FILTERS)[number]["value"]>("all");
-  const [now] = useState(() => Date.now());
 
   const pending = activities.filter((a) => !a.done);
   const visibleTimeline = useMemo(
@@ -100,7 +99,7 @@ export function DealWorkspace({
 
   async function addNote() {
     const content = note.trim();
-    if (!content) return;
+    if (!content || savingNote) return;
     setSavingNote(true);
     const supabase = createClient();
     const {
@@ -217,7 +216,7 @@ export function DealWorkspace({
           <ul className="flex flex-col gap-2">
             {pending.map((a) => {
               const Icon = ACTIVITY_ICON[a.type] ?? CheckCircle2;
-              const overdue = a.due_date ? new Date(a.due_date).getTime() < now : false;
+              const overdue = a.overdue;
               return (
                 <li key={a.id}>
                   <Card className="flex items-start gap-3 p-3">

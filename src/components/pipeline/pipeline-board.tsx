@@ -279,6 +279,7 @@ export function PipelineBoard({
           page={page}
           pageSize={pageSize}
           selection={selection}
+          selectable={canReassign}
           update={update}
           emptyAction={
             chips.length > 0 ? (
@@ -294,7 +295,7 @@ export function PipelineBoard({
 
       {view === "forecast" && <ForecastView deals={filteredDeals} />}
 
-      {view === "list" && (
+      {view === "list" && canReassign && (
         <BulkActionBar
           count={selection.selected.size}
           totalFiltered={filteredDeals.length}

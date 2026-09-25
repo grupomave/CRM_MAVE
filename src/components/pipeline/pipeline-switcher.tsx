@@ -30,7 +30,11 @@ export function PipelineSwitcher({
   return (
     <Select
       value={selectedPipelineId ?? undefined}
-      onValueChange={(value) => router.push(`/pipeline?pipeline=${value}`)}
+      onValueChange={(value) => {
+        // Filtros de etapa não valem para outro funil; a visualização sim
+        const view = new URLSearchParams(window.location.search).get("view");
+        router.push(`/pipeline?pipeline=${value}${view ? `&view=${view}` : ""}`);
+      }}
     >
       <SelectTrigger className="w-56" aria-label="Funil">
         <SelectValue placeholder="Selecione o funil" />

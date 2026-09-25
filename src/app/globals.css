@@ -50,7 +50,7 @@
 
   /* Semânticas — base (ícones/bordas/botões), subtle (fundo de badge),
      strong (texto sobre o subtle, contraste AA) */
-  --color-success: #1f8a5a;
+  --color-success: #197a4f;
   --color-success-foreground: #ffffff;
   --color-success-subtle: #e6f4ec;
   --color-success-strong: #166a44;

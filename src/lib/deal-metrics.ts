@@ -9,6 +9,17 @@ export function daysSince(iso: string | null | undefined, now = Date.now()) {
   return Math.max(0, Math.floor((now - new Date(iso).getTime()) / DAY_MS));
 }
 
+// Marca atividades pendentes cuja data já passou
+export function withOverdue<T extends { done: boolean; due_date: string | null }>(
+  items: T[],
+  now = Date.now(),
+): (T & { overdue: boolean })[] {
+  return items.map((a) => ({
+    ...a,
+    overdue: !a.done && !!a.due_date && new Date(a.due_date).getTime() < now,
+  }));
+}
+
 export interface StageChange {
   to_stage_id: string | null;
   changed_at: string;

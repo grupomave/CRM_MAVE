@@ -65,7 +65,7 @@ export default async function PipelinePage({
             .range(from, to) as unknown as PromiseLike<{ data: RawDealRow[] | null; error: unknown }>,
         )
       : Promise.resolve([] as RawDealRow[]),
-    supabase.from("profiles").select("id, full_name").order("full_name"),
+    supabase.from("profiles").select("id, full_name, is_active").order("full_name"),
   ]);
 
   // Próximas atividades pendentes dos negócios deste funil. Filtra pelo

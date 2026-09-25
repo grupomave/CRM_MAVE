@@ -68,9 +68,12 @@ export function BulkOwnerButton({
     setSaving(false);
 
     if (failure) {
-      toast.error("Não foi possível alterar o responsável", {
-        description: friendlyError(failure),
-      });
+      toast.error(
+        updated > 0
+          ? `Alteração interrompida: ${updated} de ${ids.length} registros foram alterados`
+          : "Não foi possível alterar o responsável",
+        { description: friendlyError(failure) },
+      );
     } else if (updated < ids.length) {
       toast.warning(`${updated} de ${ids.length} registros alterados`, {
         description: "Os demais não puderam ser alterados por falta de permissão.",

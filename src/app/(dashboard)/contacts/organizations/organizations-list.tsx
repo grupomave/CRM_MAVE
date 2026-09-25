@@ -144,6 +144,7 @@ export function OrganizationsList({
       <Table stickyHeader>
         <TableHeader>
           <TableRow>
+            {canReassign && (
             <TableHead className="w-10">
               <Checkbox
                 aria-label="Selecionar todos desta página"
@@ -152,6 +153,7 @@ export function OrganizationsList({
                 disabled={pageIds.length === 0}
               />
             </TableHead>
+            )}
             <SortableHead sortKey="name" sort={filters.sort} onSort={onSort}>
               Organização
             </SortableHead>
@@ -184,6 +186,7 @@ export function OrganizationsList({
             const isSelected = selection.selected.has(o.id);
             return (
               <TableRow key={o.id} data-state={isSelected ? "selected" : undefined}>
+                {canReassign && (
                 <TableCell>
                   <Checkbox
                     aria-label={`Selecionar ${o.name}`}
@@ -191,6 +194,7 @@ export function OrganizationsList({
                     onCheckedChange={(checked) => selection.toggle(o.id, checked === true)}
                   />
                 </TableCell>
+                )}
                 <TableCell>
                   <Link
                     href={`/contacts/organizations/${o.id}`}
@@ -269,7 +273,7 @@ export function OrganizationsList({
           })}
           {current.rows.length === 0 && (
             <TableRow className="hover:bg-transparent">
-              <TableCell colSpan={10}>
+              <TableCell colSpan={canReassign ? 10 : 9}>
                 <EmptyState
                   icon={Building2}
                   title={

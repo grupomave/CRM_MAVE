@@ -29,6 +29,7 @@ export interface PipelineDeal {
 export interface OwnerOption {
   id: string;
   full_name: string;
+  is_active?: boolean;
 }
 
 export interface PipelineOption {

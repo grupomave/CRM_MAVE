@@ -41,6 +41,7 @@ export function DealsTable({
   selection,
   update,
   emptyAction,
+  selectable = true,
 }: {
   deals: PipelineDeal[];
   stages: PipelineStage[];
@@ -50,6 +51,8 @@ export function DealsTable({
   selection: Selection;
   update: (updates: Record<string, string | number | boolean | null>) => void;
   emptyAction?: React.ReactNode;
+  /** false quando não há ação em massa disponível para o usuário */
+  selectable?: boolean;
 }) {
   const current = paginate(deals, page, pageSize);
   const pageIds = current.rows.map((d) => d.id);
@@ -62,6 +65,7 @@ export function DealsTable({
       <Table stickyHeader>
         <TableHeader>
           <TableRow>
+            {selectable && (
             <TableHead className="w-10">
               <Checkbox
                 aria-label="Selecionar todos desta página"
@@ -70,6 +74,7 @@ export function DealsTable({
                 disabled={pageIds.length === 0}
               />
             </TableHead>
+            )}
             <SortableHead sortKey="title" sort={filters.sort} onSort={onSort}>
               Negócio
             </SortableHead>
@@ -101,6 +106,7 @@ export function DealsTable({
             const isSelected = selection.selected.has(d.id);
             return (
               <TableRow key={d.id} data-state={isSelected ? "selected" : undefined}>
+                {selectable && (
                 <TableCell>
                   <Checkbox
                     aria-label={`Selecionar ${d.title}`}
@@ -108,6 +114,7 @@ export function DealsTable({
                     onCheckedChange={(checked) => selection.toggle(d.id, checked === true)}
                   />
                 </TableCell>
+                )}
                 <TableCell className="min-w-48 font-medium">
                   <Link href={`/deals/${d.id}`} className="hover:text-primary hover:underline">
                     {d.title}
@@ -159,7 +166,7 @@ export function DealsTable({
           })}
           {current.rows.length === 0 && (
             <TableRow className="hover:bg-transparent">
-              <TableCell colSpan={9}>
+              <TableCell colSpan={selectable ? 9 : 8}>
                 <EmptyState
                   icon={KanbanSquare}
                   title="Nenhum negócio encontrado"
