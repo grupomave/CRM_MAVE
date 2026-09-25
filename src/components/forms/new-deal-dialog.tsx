@@ -175,14 +175,12 @@ export function NewDealDialog({
         .order("order_index");
 
       setStages(data ?? []);
-      const stageStillValid = data?.some((s) => s.id === getValues("stage_id"));
-      if (!stageStillValid) {
-        setValue(
-          "stage_id",
-          defaultStageId && data?.some((s) => s.id === defaultStageId)
-            ? defaultStageId
-            : (data?.[0]?.id ?? ""),
-        );
+      // Ao abrir a partir de uma coluna do Kanban, a etapa daquela coluna
+      // vem pré-selecionada; senão mantém a escolhida ou usa a primeira.
+      if (defaultStageId && data?.some((s) => s.id === defaultStageId)) {
+        setValue("stage_id", defaultStageId);
+      } else if (!data?.some((s) => s.id === getValues("stage_id"))) {
+        setValue("stage_id", data?.[0]?.id ?? "");
       }
     })();
   }, [open, selectedPipelineId, defaultStageId, getValues, setValue]);

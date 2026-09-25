@@ -367,6 +367,7 @@ export interface Database {
           is_active: boolean;
           must_change_password: boolean;
           phone: string | null;
+          preferences: Record<string, unknown>;
         };
         Insert: Partial<Database["public"]["Tables"]["profiles"]["Row"]> & {
           id: string;

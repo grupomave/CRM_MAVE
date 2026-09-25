@@ -1,43 +1,29 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  DndContext,
-  DragOverlay,
-  MouseSensor,
-  TouchSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-  type DragStartEvent,
-} from "@dnd-kit/core";
-import { ChevronLeft, ChevronRight, KanbanSquare, List, Plus, TrendingUp } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { CalendarRange, KanbanSquare, List, Plus, Rows2, Rows3, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { SimpleTooltip } from "@/components/ui/tooltip";
+import { NewDealDialog } from "@/components/forms/new-deal-dialog";
 import { useListParams } from "@/components/list/use-list-params";
 import { BulkActionBar, useRowSelection } from "@/components/list/bulk-action-bar";
 import { BulkOwnerButton } from "@/components/list/bulk-owner-dialog";
 import { applyDealFilters, parseDealFilters } from "@/lib/filters/deals";
 import { getEnumParam, getPagination } from "@/lib/filters/params";
-import { NewDealDialog } from "@/components/forms/new-deal-dialog";
 import { createClient } from "@/lib/supabase/client";
-import { formatCurrencyBRL, cn } from "@/lib/utils";
-import { DealCardOverlay } from "./deal-card";
-import { PipelineColumn } from "./pipeline-column";
+import { friendlyError, toast } from "@/lib/toast";
+import { usePreferences } from "@/lib/use-preferences";
+import type { KanbanDensity, UserPreferences } from "@/lib/preferences";
+import { cn, formatCurrencyBRL } from "@/lib/utils";
+import { KanbanBoard } from "./kanban-board";
 import { PipelineSwitcher } from "./pipeline-switcher";
-import {
-  DEAL_FILTER_KEYS,
-  FilterChips,
-  PipelineFilters,
-  dealFilterChips,
-} from "./pipeline-filters";
+import { DEAL_FILTER_KEYS, FilterChips, PipelineFilters, dealFilterChips } from "./pipeline-filters";
 import { DealsTable } from "./deals-table";
-import type {
-  OwnerOption,
-  PipelineDeal,
-  PipelineOption,
-  PipelineStage,
-} from "./types";
+import type { OwnerOption, PipelineDeal, PipelineOption, PipelineStage } from "./types";
 
 const VIEW_MODES = ["kanban", "list", "forecast"] as const;
 type ViewMode = (typeof VIEW_MODES)[number];
@@ -49,6 +35,8 @@ export function PipelineBoard({
   initialDeals,
   owners,
   canReassign = false,
+  userId = null,
+  initialPreferences = {},
 }: {
   pipelines: PipelineOption[];
   selectedPipelineId: string | null;
@@ -56,81 +44,93 @@ export function PipelineBoard({
   initialDeals: PipelineDeal[];
   owners: OwnerOption[];
   canReassign?: boolean;
+  userId?: string | null;
+  initialPreferences?: UserPreferences;
 }) {
+  const router = useRouter();
+
+  // Estado local (para movimentos otimistas) que acompanha os dados do
+  // servidor a cada router.refresh(): quando a prop muda, o estado é
+  // substituído durante a renderização (padrão recomendado pelo React).
   const [deals, setDeals] = useState(initialDeals);
+  const [syncedFrom, setSyncedFrom] = useState(initialDeals);
+  if (syncedFrom !== initialDeals) {
+    setSyncedFrom(initialDeals);
+    setDeals(initialDeals);
+  }
+
+  // Cópia sempre atual para ações assíncronas (ex.: "Desfazer" do toast)
+  const dealsRef = useRef(deals);
+  useEffect(() => {
+    dealsRef.current = deals;
+  }, [deals]);
+
   const { params, update, clear } = useListParams();
   const filters = useMemo(() => parseDealFilters(params), [params]);
   const { page, pageSize } = getPagination(params);
   const view: ViewMode = getEnumParam(params, "view", VIEW_MODES, "kanban");
   const setView = (next: ViewMode) => update({ view: next === "kanban" ? null : next, page: null });
-  const [activeDealId, setActiveDealId] = useState<string | null>(null);
-  const supabase = createClient();
-  const boardScrollRef = useRef<HTMLDivElement>(null);
 
-  function scrollBoardBy(amount: number) {
-    boardScrollRef.current?.scrollBy({ left: amount, behavior: "smooth" });
-  }
-
-  function handleBoardKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
-    if (event.key === "ArrowRight") {
-      event.preventDefault();
-      scrollBoardBy(320);
-    } else if (event.key === "ArrowLeft") {
-      event.preventDefault();
-      scrollBoardBy(-320);
-    }
-  }
-
-  const sensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
-    // Delay + tolerance no toque: um "tap-and-swipe" rapido ainda rola a
-    // pagina normalmente; so um toque mais sustentado inicia o arraste.
-    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
+  const { prefs, update: updatePrefs } = usePreferences(userId, initialPreferences);
+  const density: KanbanDensity = prefs.kanbanDensity ?? "compact";
+  const collapsedIds = useMemo(
+    () => new Set(selectedPipelineId ? (prefs.collapsedStages?.[selectedPipelineId] ?? []) : []),
+    [prefs.collapsedStages, selectedPipelineId],
   );
 
+  const [createStageId, setCreateStageId] = useState<string | null>(null);
+
+  // Tempo real: outro usuário moveu/alterou/excluiu um negócio
   useEffect(() => {
+    const supabase = createClient();
     const channel = supabase
-      .channel("pipeline-deals")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "deals" },
-        (payload) => {
-          if (payload.eventType === "UPDATE") {
-            const updated = payload.new as {
-              id: string;
-              stage_id: string;
-              value: number;
-              status: "open" | "won" | "lost";
-            };
-            setDeals((prev) =>
-              prev.map((d) =>
-                d.id === updated.id
-                  ? { ...d, stage_id: updated.stage_id, value: updated.value, status: updated.status }
-                  : d,
-              ),
-            );
-          }
-        },
-      )
+      .channel(`pipeline-deals-${selectedPipelineId ?? "none"}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "deals" }, (payload) => {
+        if (payload.eventType === "UPDATE") {
+          const updated = payload.new as {
+            id: string;
+            pipeline_id: string;
+            stage_id: string;
+            value: number;
+            status: PipelineDeal["status"];
+            title: string;
+          };
+          setDeals((prev) =>
+            updated.pipeline_id !== selectedPipelineId
+              ? prev.filter((d) => d.id !== updated.id)
+              : prev.map((d) =>
+                  d.id === updated.id
+                    ? {
+                        ...d,
+                        stage_id: updated.stage_id,
+                        value: Number(updated.value),
+                        status: updated.status,
+                        title: updated.title,
+                      }
+                    : d,
+                ),
+          );
+        } else if (payload.eventType === "DELETE") {
+          const removed = payload.old as { id?: string };
+          if (removed.id) setDeals((prev) => prev.filter((d) => d.id !== removed.id));
+        }
+      })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [selectedPipelineId]);
 
   const sources = useMemo(
     () =>
-      Array.from(new Set(deals.map((d) => d.source).filter(Boolean))) as string[],
+      Array.from(new Set(deals.map((d) => d.source).filter(Boolean) as string[])).sort((a, b) =>
+        a.localeCompare(b, "pt-BR"),
+      ),
     [deals],
   );
 
-  const stageOrder = useMemo(
-    () => new Map(stages.map((s, i) => [s.id, i])),
-    [stages],
-  );
-
+  const stageOrder = useMemo(() => new Map(stages.map((s, i) => [s.id, i])), [stages]);
   const filteredDeals = useMemo(
     () => applyDealFilters(deals, filters, stageOrder),
     [deals, filters, stageOrder],
@@ -141,51 +141,32 @@ export function PipelineBoard({
 
   // O Kanban só faz sentido para negócios abertos — ganhos/perdidos não têm
   // "próxima coluna" (docx §3: fechados só aparecem na Lista).
-  const kanbanDeals = useMemo(
-    () => filteredDeals.filter((d) => d.status === "open"),
-    [filteredDeals],
-  );
+  const kanbanDeals = useMemo(() => filteredDeals.filter((d) => d.status === "open"), [filteredDeals]);
 
-  const activeDeal = activeDealId
-    ? deals.find((d) => d.id === activeDealId)
-    : undefined;
-
-  function handleDragStart(event: DragStartEvent) {
-    setActiveDealId(String(event.active.id));
-  }
-
-  async function handleDragEnd(event: DragEndEvent) {
-    setActiveDealId(null);
-    const { active, over } = event;
-    if (!over) return;
-
-    const dealId = String(active.id);
-    const newStageId = String(over.id);
-    const deal = deals.find((d) => d.id === dealId);
+  // Move um negócio de etapa (arrastar, menu do card ou teclado):
+  // otimista, com rollback e aviso se o banco recusar.
+  async function moveDeal(dealId: string, newStageId: string) {
+    const deal = dealsRef.current.find((d) => d.id === dealId);
     if (!deal || deal.stage_id === newStageId) return;
-
     const previousStageId = deal.stage_id;
+    const stageName = stages.find((s) => s.id === newStageId)?.name ?? "";
 
-    setDeals((prev) =>
-      prev.map((d) => (d.id === dealId ? { ...d, stage_id: newStageId } : d)),
-    );
+    setDeals((prev) => prev.map((d) => (d.id === dealId ? { ...d, stage_id: newStageId } : d)));
+    dealsRef.current = dealsRef.current.map((d) => (d.id === dealId ? { ...d, stage_id: newStageId } : d));
 
-    const { error } = await supabase
-      .from("deals")
-      .update({ stage_id: newStageId })
-      .eq("id", dealId);
+    const supabase = createClient();
+    const { error } = await supabase.from("deals").update({ stage_id: newStageId }).eq("id", dealId);
 
     if (error) {
-      setDeals((prev) =>
-        prev.map((d) => (d.id === dealId ? { ...d, stage_id: previousStageId } : d)),
-      );
+      setDeals((prev) => prev.map((d) => (d.id === dealId ? { ...d, stage_id: previousStageId } : d)));
+      dealsRef.current = dealsRef.current.map((d) => (d.id === dealId ? { ...d, stage_id: previousStageId } : d));
+      toast.error("Não foi possível mover o negócio", { description: friendlyError(error) });
       return;
     }
 
     const {
       data: { user },
     } = await supabase.auth.getUser();
-
     if (user) {
       await supabase.from("deal_stage_history").insert({
         deal_id: dealId,
@@ -194,32 +175,47 @@ export function PipelineBoard({
         changed_by: user.id,
       });
     }
+    toast.success(`“${deal.title}” movido para ${stageName}`, {
+      action: { label: "Desfazer", onClick: () => moveDeal(dealId, previousStageId) },
+    });
   }
 
+  function toggleCollapse(stageId: string) {
+    if (!selectedPipelineId) return;
+    updatePrefs((current) => {
+      const list = current.collapsedStages?.[selectedPipelineId] ?? [];
+      const next = list.includes(stageId) ? list.filter((id) => id !== stageId) : [...list, stageId];
+      return { ...current, collapsedStages: { ...current.collapsedStages, [selectedPipelineId]: next } };
+    });
+  }
+
+  const newDealButton = (
+    <Button onClick={() => setCreateStageId(stages[0]?.id ?? "")} disabled={stages.length === 0}>
+      <Plus />
+      Novo negócio
+    </Button>
+  );
+
   return (
-    <div className="flex h-full flex-col gap-4">
+    <div
+      className={cn(
+        "flex flex-col gap-4",
+        // No desktop o Kanban ocupa a altura da janela e cada coluna rola sozinha
+        view === "kanban" && "md:h-[calc(100dvh-6.5rem)]",
+      )}
+    >
       <PageHeader
         title="Negócios"
         actions={
           <>
             <PipelineSwitcher pipelines={pipelines} selectedPipelineId={selectedPipelineId} />
-            <NewDealDialog
-              trigger={
-                <Button>
-                  <Plus />
-                  Novo negócio
-                </Button>
-              }
-              pipelineId={selectedPipelineId ?? undefined}
-              defaultStageId={stages[0]?.id}
-              onCreated={() => window.location.reload()}
-            />
+            {newDealButton}
           </>
         }
       />
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-1 rounded-md bg-muted p-1">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div role="tablist" aria-label="Visualização" className="flex items-center gap-1 rounded-md bg-muted p-1">
           <ViewButton icon={KanbanSquare} active={view === "kanban"} onClick={() => setView("kanban")}>
             Kanban
           </ViewButton>
@@ -230,71 +226,49 @@ export function PipelineBoard({
             Previsão
           </ViewButton>
         </div>
+
+        {view === "kanban" && (
+          <div role="radiogroup" aria-label="Densidade dos cards" className="flex items-center gap-1 rounded-md bg-muted p-1">
+            <DensityButton
+              icon={Rows3}
+              label="Compacto"
+              active={density === "compact"}
+              onClick={() => updatePrefs((p) => ({ ...p, kanbanDensity: "compact" }))}
+            />
+            <DensityButton
+              icon={Rows2}
+              label="Confortável"
+              active={density === "comfortable"}
+              onClick={() => updatePrefs((p) => ({ ...p, kanbanDensity: "comfortable" }))}
+            />
+          </div>
+        )}
       </div>
 
-      <PipelineFilters
-        owners={owners}
-        stages={stages}
-        sources={sources}
-        filters={filters}
-        update={update}
-      />
+      <PipelineFilters owners={owners} stages={stages} sources={sources} filters={filters} update={update} />
 
       <FilterChips chips={chips} onClearAll={() => clear(DEAL_FILTER_KEYS)} />
 
       {stages.length === 0 && (
-        <p className="text-sm text-muted-foreground">
-          Nenhum pipeline padrão encontrado. Rode as migrations do Supabase
-          (supabase/migrations) e marque um pipeline como is_default.
-        </p>
+        <Card>
+          <EmptyState
+            icon={KanbanSquare}
+            title="Este funil ainda não tem etapas"
+            description="Cadastre as etapas em Configurações > Pipelines e estágios."
+          />
+        </Card>
       )}
 
-      {view === "kanban" && (
-        <DndContext
-          id="pipeline-kanban"
-          sensors={sensors}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-          onDragCancel={() => setActiveDealId(null)}
-        >
-          <div className="relative">
-            <div className="sticky top-24 z-10 flex h-0 items-center justify-between overflow-visible">
-              <button
-                type="button"
-                aria-label="Rolar para a esquerda"
-                onClick={() => scrollBoardBy(-320)}
-                className="hidden -translate-y-1/2 rounded-full border border-border bg-card p-1.5 shadow-md hover:bg-muted md:flex"
-              >
-                <ChevronLeft className="size-4" />
-              </button>
-              <button
-                type="button"
-                aria-label="Rolar para a direita"
-                onClick={() => scrollBoardBy(320)}
-                className="hidden -translate-y-1/2 rounded-full border border-border bg-card p-1.5 shadow-md hover:bg-muted md:flex"
-              >
-                <ChevronRight className="size-4" />
-              </button>
-            </div>
-            <div
-              ref={boardScrollRef}
-              onKeyDown={handleBoardKeyDown}
-              tabIndex={0}
-              className="flex gap-3 overflow-x-auto pb-2 focus:outline-none"
-            >
-              {stages.map((stage) => (
-                <PipelineColumn
-                  key={stage.id}
-                  stage={stage}
-                  deals={kanbanDeals.filter((d) => d.stage_id === stage.id)}
-                />
-              ))}
-            </div>
-          </div>
-          <DragOverlay>
-            {activeDeal ? <DealCardOverlay deal={activeDeal} /> : null}
-          </DragOverlay>
-        </DndContext>
+      {view === "kanban" && stages.length > 0 && (
+        <KanbanBoard
+          stages={stages}
+          deals={kanbanDeals}
+          density={density}
+          collapsedIds={collapsedIds}
+          onToggleCollapse={toggleCollapse}
+          onMove={moveDeal}
+          onCreate={(stageId) => setCreateStageId(stageId)}
+        />
       )}
 
       {view === "list" && (
@@ -307,32 +281,19 @@ export function PipelineBoard({
           selection={selection}
           update={update}
           emptyAction={
-            chips.length > 0 && (
+            chips.length > 0 ? (
               <Button variant="secondary" size="sm" onClick={() => clear(DEAL_FILTER_KEYS)}>
                 Limpar filtros
               </Button>
+            ) : (
+              newDealButton
             )
           }
         />
       )}
 
-      {view === "forecast" && (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {Object.entries(groupByExpectedMonth(filteredDeals)).map(
-            ([month, group]) => (
-              <div key={month} className="rounded-lg border border-border p-4">
-                <h4 className="text-sm font-semibold capitalize">{month}</h4>
-                <p className="numeric mt-1 text-subtitle text-primary">
-                  {formatCurrencyBRL(group.reduce((s, d) => s + d.value, 0))}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {group.length} negócio(s)
-                </p>
-              </div>
-            ),
-          )}
-        </div>
-      )}
+      {view === "forecast" && <ForecastView deals={filteredDeals} />}
+
       {view === "list" && (
         <BulkActionBar
           count={selection.selected.size}
@@ -341,31 +302,61 @@ export function PipelineBoard({
           onClear={selection.clear}
         >
           {canReassign && (
-            <BulkOwnerButton
-              table="deals"
-              ids={[...selection.selected]}
-              owners={owners}
-              onDone={selection.clear}
-            />
+            <BulkOwnerButton table="deals" ids={[...selection.selected]} owners={owners} onDone={selection.clear} />
           )}
         </BulkActionBar>
       )}
+
+      <NewDealDialog
+        open={createStageId !== null}
+        onOpenChange={(open) => !open && setCreateStageId(null)}
+        pipelineId={selectedPipelineId ?? undefined}
+        defaultStageId={createStageId || stages[0]?.id}
+        onCreated={() => router.refresh()}
+      />
     </div>
   );
 }
 
-function groupByExpectedMonth(deals: PipelineDeal[]) {
-  const groups: Record<string, PipelineDeal[]> = {};
+// Previsão: negócios agrupados pelo mês previsto de fechamento
+function ForecastView({ deals }: { deals: PipelineDeal[] }) {
+  const groups = new Map<string, PipelineDeal[]>();
   for (const deal of deals) {
-    const key = deal.expected_close_date
-      ? new Date(deal.expected_close_date).toLocaleDateString("pt-BR", {
-          month: "long",
-          year: "numeric",
-        })
-      : "Sem previsão";
-    groups[key] = groups[key] ? [...groups[key], deal] : [deal];
+    const key = deal.expected_close_date ? deal.expected_close_date.slice(0, 7) : "sem";
+    groups.set(key, [...(groups.get(key) ?? []), deal]);
   }
-  return groups;
+  const keys = [...groups.keys()].sort((a, b) => (a === "sem" ? 1 : b === "sem" ? -1 : a.localeCompare(b)));
+
+  if (keys.length === 0) {
+    return (
+      <Card>
+        <EmptyState icon={CalendarRange} title="Nenhum negócio para prever com esses filtros" />
+      </Card>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {keys.map((key) => {
+        const group = groups.get(key) ?? [];
+        const label =
+          key === "sem"
+            ? "Sem previsão"
+            : new Date(`${key}-15T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+        return (
+          <Card key={key} className="flex flex-col gap-1 p-4">
+            <h3 className="text-sm font-semibold capitalize text-foreground">{label}</h3>
+            <p className="numeric text-subtitle text-primary">
+              {formatCurrencyBRL(group.reduce((s, d) => s + d.value, 0))}
+            </p>
+            <p className="numeric text-caption text-muted-foreground">
+              {group.length} {group.length === 1 ? "negócio" : "negócios"}
+            </p>
+          </Card>
+        );
+      })}
+    </div>
+  );
 }
 
 function ViewButton({
@@ -381,14 +372,48 @@ function ViewButton({
 }) {
   return (
     <button
+      type="button"
+      role="tab"
+      aria-selected={active}
       onClick={onClick}
       className={cn(
-        "flex items-center gap-1.5 rounded-sm px-3 py-1.5 text-sm font-medium text-muted-foreground",
+        "flex h-7 items-center gap-1.5 rounded-sm px-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground",
         active && "bg-card text-foreground shadow-xs",
       )}
     >
       <Icon className="size-4" />
       {children}
     </button>
+  );
+}
+
+function DensityButton({
+  icon: Icon,
+  label,
+  active,
+  onClick,
+}: {
+  icon: typeof KanbanSquare;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <SimpleTooltip content={`Cards: ${label.toLowerCase()}`}>
+      <button
+        type="button"
+        role="radio"
+        aria-checked={active}
+        aria-label={`Cards ${label.toLowerCase()}`}
+        onClick={onClick}
+        className={cn(
+          "flex h-7 items-center gap-1.5 rounded-sm px-2.5 text-caption font-medium text-muted-foreground transition-colors hover:text-foreground",
+          active && "bg-card text-foreground shadow-xs",
+        )}
+      >
+        <Icon className="size-4" />
+        <span className="hidden lg:inline">{label}</span>
+      </button>
+    </SimpleTooltip>
   );
 }

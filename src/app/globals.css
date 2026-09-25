@@ -249,6 +249,12 @@
   clip-path: polygon(0 0, calc(100% - 0.5rem) 0, 100% 50%, calc(100% - 0.5rem) 100%, 0 100%);
 }
 
+/* Texto na vertical (colunas recolhidas do Kanban) */
+@utility vertical-text {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
+
 /* Valores monetários e colunas numéricas */
 @utility numeric {
   font-variant-numeric: tabular-nums;

@@ -7,6 +7,7 @@ import type { LeadRow } from "@/lib/filters/leads";
 import type { OrganizationRow } from "@/lib/filters/organizations";
 import type { PersonRow } from "@/lib/filters/people";
 import type { UserRole } from "@/lib/supabase/types";
+import { parsePreferences, type UserPreferences } from "@/lib/preferences";
 
 // Carregadores das listagens. Rodam com o cliente Supabase do usuário
 // logado, então a RLS decide o que cada um enxerga (vendedor: só os seus;
@@ -26,6 +27,7 @@ export interface CurrentUser {
   email: string | null;
   full_name: string;
   role: UserRole;
+  preferences: UserPreferences;
 }
 
 export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
@@ -36,7 +38,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   if (!user) return null;
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, role")
+    .select("full_name, role, preferences")
     .eq("id", user.id)
     .single();
   return {
@@ -44,6 +46,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     email: user.email ?? null,
     full_name: profile?.full_name ?? user.email ?? "Usuário",
     role: (profile?.role as UserRole) ?? "vendedor",
+    preferences: parsePreferences(profile?.preferences),
   };
 });
 

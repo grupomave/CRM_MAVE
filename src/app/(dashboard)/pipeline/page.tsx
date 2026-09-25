@@ -68,19 +68,24 @@ export default async function PipelinePage({
     supabase.from("profiles").select("id, full_name").order("full_name"),
   ]);
 
-  const dealIds = dealRows.map((d) => d.id);
-
-  const { data: nextActivities } = dealIds.length
-    ? await supabase
-        .from("activities")
-        .select("deal_id, subject, due_date")
-        .in("deal_id", dealIds)
-        .eq("done", false)
-        .order("due_date", { ascending: true })
-    : { data: [] as { deal_id: string | null; subject: string; due_date: string | null }[] };
+  // Próximas atividades pendentes dos negócios deste funil. Filtra pelo
+  // funil via join (deals!inner) em vez de .in("deal_id", [...]): com 2 mil
+  // negócios a lista de ids estourava o tamanho da URL da API.
+  type NextActivityRow = { deal_id: string | null; subject: string; due_date: string | null };
+  const nextActivities = pipelineId
+    ? await fetchAllRows<NextActivityRow>((from, to) =>
+        supabase
+          .from("activities")
+          .select("deal_id, subject, due_date, deals!inner ( pipeline_id )")
+          .eq("deals.pipeline_id", pipelineId)
+          .eq("done", false)
+          .order("due_date", { ascending: true })
+          .range(from, to) as unknown as PromiseLike<{ data: NextActivityRow[] | null; error: unknown }>,
+      )
+    : [];
 
   const nextActivityByDeal = new Map<string, { subject: string; due_date: string | null }>();
-  for (const activity of nextActivities ?? []) {
+  for (const activity of nextActivities) {
     if (activity.deal_id && !nextActivityByDeal.has(activity.deal_id)) {
       nextActivityByDeal.set(activity.deal_id, activity);
     }
@@ -131,6 +136,8 @@ export default async function PipelinePage({
       initialDeals={deals}
       owners={owners}
       canReassign={canReassignOwner(me?.role)}
+      userId={me?.id ?? null}
+      initialPreferences={me?.preferences ?? {}}
     />
   );
 }
