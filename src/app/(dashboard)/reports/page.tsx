@@ -40,6 +40,7 @@ interface DealRow {
   expected_close_date: string | null;
   created_at: string;
   updated_at: string;
+  closed_at: string | null;
   last_activity_at: string | null;
   profiles: { full_name: string } | null;
   organizations: { name: string; state: string | null } | null;
@@ -84,7 +85,7 @@ export default async function ReportsPage({
   let dealsQuery = supabase
     .from("deals")
     .select(
-      "id, title, value, status, lost_reason, stage_id, owner_id, source, expected_close_date, created_at, updated_at, last_activity_at, profiles!deals_owner_id_fkey ( full_name ), organizations ( name, state )",
+      "id, title, value, status, lost_reason, stage_id, owner_id, source, expected_close_date, created_at, updated_at, closed_at, last_activity_at, profiles!deals_owner_id_fkey ( full_name ), organizations ( name, state )",
     );
   if (pipelineId) dealsQuery = dealsQuery.eq("pipeline_id", pipelineId);
   if (ownerId !== "all") dealsQuery = dealsQuery.eq("owner_id", ownerId);
@@ -150,8 +151,10 @@ export default async function ReportsPage({
   };
 
   const createdInRange = deals.filter((d) => inRange(d.created_at));
-  const wonInRange = deals.filter((d) => d.status === "won" && inRange(d.updated_at));
-  const lostInRange = deals.filter((d) => d.status === "lost" && inRange(d.updated_at));
+  // Data de fechamento própria (migration 0023); updated_at só como reserva
+  const closedAt = (d: { closed_at: string | null; updated_at: string }) => d.closed_at ?? d.updated_at;
+  const wonInRange = deals.filter((d) => d.status === "won" && inRange(closedAt(d)));
+  const lostInRange = deals.filter((d) => d.status === "lost" && inRange(closedAt(d)));
 
   const wonValue = wonInRange.reduce((sum, d) => sum + d.value, 0);
   const lostValue = lostInRange.reduce((sum, d) => sum + d.value, 0);
@@ -173,8 +176,8 @@ export default async function ReportsPage({
   const monthlyData = months.map((m) => ({
     month: monthLabel(m),
     criados: createdInRange.filter((d) => monthKey(d.created_at) === m).length,
-    ganhos: wonInRange.filter((d) => monthKey(d.updated_at) === m).length,
-    perdidos: lostInRange.filter((d) => monthKey(d.updated_at) === m).length,
+    ganhos: wonInRange.filter((d) => monthKey(closedAt(d)) === m).length,
+    perdidos: lostInRange.filter((d) => monthKey(closedAt(d)) === m).length,
   }));
 
   // --- Ranking de vendedores ---

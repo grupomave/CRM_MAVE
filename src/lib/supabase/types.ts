@@ -158,6 +158,7 @@ export interface Database {
           original_owner_id: string | null;
           last_activity_at: string | null;
           frozen_at: string | null;
+          closed_at: string | null;
         };
         Insert: Partial<Database["public"]["Tables"]["deals"]["Row"]> & {
           title: string;

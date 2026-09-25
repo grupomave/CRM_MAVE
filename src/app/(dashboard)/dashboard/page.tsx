@@ -34,8 +34,12 @@ interface DealRow {
   pipeline_id: string;
   organization_id: string | null;
   updated_at: string;
+  closed_at: string | null;
   created_at: string;
 }
+
+// Data de fechamento própria (migration 0023); updated_at só como reserva
+const closedAt = (d: DealRow) => d.closed_at ?? d.updated_at;
 
 const DAY = 86400000;
 
@@ -89,7 +93,7 @@ export default async function DashboardPage({
   let dealsQuery = supabase
     .from("deals")
     .select(
-      "id, title, value, status, stage_id, pipeline_id, organization_id, updated_at, created_at",
+      "id, title, value, status, stage_id, pipeline_id, organization_id, updated_at, closed_at, created_at",
     );
   if (pipelineId) dealsQuery = dealsQuery.eq("pipeline_id", pipelineId);
   if (isVendedor && user) dealsQuery = dealsQuery.eq("owner_id", user.id);
@@ -151,8 +155,8 @@ export default async function DashboardPage({
 
   function periodStats(a: number, b: number) {
     const created = allDeals.filter((d) => between(d.created_at, a, b));
-    const won = allDeals.filter((d) => d.status === "won" && between(d.updated_at, a, b));
-    const lost = allDeals.filter((d) => d.status === "lost" && between(d.updated_at, a, b));
+    const won = allDeals.filter((d) => d.status === "won" && between(closedAt(d), a, b));
+    const lost = allDeals.filter((d) => d.status === "lost" && between(closedAt(d), a, b));
     const closed = won.length + lost.length;
     return {
       created,
@@ -169,8 +173,8 @@ export default async function DashboardPage({
   const monthlyData = months.map((m) => ({
     month: monthLabel(m),
     criados: current.created.filter((d) => monthKey(d.created_at) === m).length,
-    ganhos: current.won.filter((d) => monthKey(d.updated_at) === m).length,
-    perdidos: current.lost.filter((d) => monthKey(d.updated_at) === m).length,
+    ganhos: current.won.filter((d) => monthKey(closedAt(d)) === m).length,
+    perdidos: current.lost.filter((d) => monthKey(closedAt(d)) === m).length,
   }));
 
   // Novos clientes: organizações cujo primeiro negócio ganho (em toda a
@@ -178,7 +182,7 @@ export default async function DashboardPage({
   const firstWonByOrg = new Map<string, number>();
   for (const d of allDeals) {
     if (d.status !== "won" || !d.organization_id) continue;
-    const t = new Date(d.updated_at).getTime();
+    const t = new Date(closedAt(d)).getTime();
     const cur = firstWonByOrg.get(d.organization_id);
     if (cur == null || t < cur) firstWonByOrg.set(d.organization_id, t);
   }
