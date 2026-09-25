@@ -1,19 +1,23 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
+import { KanbanSquare } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/ui/page-header";
+import { EntityFilesTab } from "@/components/entity-files-tab";
+import { RelatedList } from "@/components/related-list";
 import { formatCurrencyBRL } from "@/lib/utils";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
+import { getCurrentUser } from "@/lib/data/lists";
+import { DEAL_STATUS_BADGE, DEAL_STATUS_LABEL } from "@/lib/filters/deals";
 import { ContactDetailForm } from "./contact-detail-form";
-import { EntityFilesTab } from "@/components/entity-files-tab";
-import { PageHeader } from "@/components/ui/page-header";
 
-const DEAL_STATUS_LABEL: Record<string, string> = {
-  open: "Aberto",
-  won: "Ganho",
-  lost: "Perdido",
-};
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const supabase = await createClient();
+  const { data } = await supabase.from("contacts").select("name").eq("id", id).maybeSingle();
+  return { title: data?.name ?? "Pessoa" };
+}
 
 export default async function ContactDetailPage({
   params,
@@ -31,18 +35,11 @@ export default async function ContactDetailPage({
 
   if (!contact) notFound();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const { data: myProfile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user?.id ?? "")
-    .single();
-  const canDelete = myProfile?.role === "admin" || myProfile?.role === "gestor";
+  const me = await getCurrentUser();
+  const canDelete = me?.role === "admin" || me?.role === "gestor";
 
   const [organizations, dealsRes, attachmentsRes] = await Promise.all([
-    fetchAllRows((from, to) =>
+    fetchAllRows<{ id: string; name: string }>((from, to) =>
       supabase.from("organizations").select("id, name").order("name").range(from, to),
     ),
     supabase
@@ -58,63 +55,48 @@ export default async function ContactDetailPage({
       .order("created_at", { ascending: false }),
   ]);
 
+  const organizationName = organizations.find((o) => o.id === contact.organization_id)?.name;
+
   return (
-    <div className="flex flex-col gap-4">
+    <div className="mx-auto flex w-full max-w-detail flex-col gap-5">
       <PageHeader
         title={contact.name}
+        description={[contact.job_title, organizationName].filter(Boolean).join(" · ") || undefined}
         breadcrumbs={[{ label: "Pessoas", href: "/contacts/people" }, { label: contact.name }]}
       />
 
-      <ContactDetailForm
-        contact={contact as any}
-        organizations={organizations}
-        canDelete={canDelete}
-      />
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)]">
+        <ContactDetailForm contact={contact as never} organizations={organizations} canDelete={canDelete} />
 
-      <Card>
-        <CardContent className="flex flex-col gap-2 p-4">
-          <h2 className="text-sm font-semibold text-foreground">Negócios</h2>
-          {(dealsRes.data ?? []).map((d) => (
-            <Link
-              key={d.id}
-              href={`/deals/${d.id}`}
-              className="flex items-center justify-between rounded-md border border-border p-2 text-sm hover:border-primary"
-            >
-              <span className="font-medium">{d.title}</span>
-              <span className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">
-                  {formatCurrencyBRL(d.value)}
-                </span>
-                <Badge
-                  variant={
-                    d.status === "won"
-                      ? "success"
-                      : d.status === "lost"
-                        ? "destructive"
-                        : "outline"
-                  }
-                >
-                  {DEAL_STATUS_LABEL[d.status] ?? d.status}
-                </Badge>
-              </span>
-            </Link>
-          ))}
-          {(dealsRes.data ?? []).length === 0 && (
-            <p className="text-sm text-muted-foreground">Nenhum negócio vinculado.</p>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="flex flex-col gap-2 p-4">
-          <h2 className="text-sm font-semibold text-foreground">Documentos</h2>
-          <EntityFilesTab
-            entityType="contact"
-            entityId={id}
-            attachments={attachmentsRes.data ?? []}
+        <div className="flex flex-col gap-5">
+          <RelatedList
+            title="Negócios"
+            icon={KanbanSquare}
+            emptyText="Nenhum negócio vinculado"
+            items={(dealsRes.data ?? []).map((d) => ({
+              id: d.id,
+              href: `/deals/${d.id}`,
+              title: d.title,
+              trailing: (
+                <>
+                  <span className="numeric text-caption text-muted-foreground">{formatCurrencyBRL(d.value)}</span>
+                  <Badge variant={DEAL_STATUS_BADGE[d.status as keyof typeof DEAL_STATUS_BADGE] ?? "neutral"}>
+                    {DEAL_STATUS_LABEL[d.status as keyof typeof DEAL_STATUS_LABEL] ?? d.status}
+                  </Badge>
+                </>
+              ),
+            }))}
           />
-        </CardContent>
-      </Card>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle>Documentos</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <EntityFilesTab entityType="contact" entityId={id} attachments={attachmentsRes.data ?? []} />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }

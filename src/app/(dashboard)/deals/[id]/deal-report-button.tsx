@@ -192,9 +192,9 @@ export function DealReportButton({ data }: { data: DealReportData }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" disabled={loading !== null}>
-          {loading ? <Loader2 className="size-4 animate-spin" /> : <FileDown className="size-4" />}
-          Relatório do negócio
+        <Button variant="secondary" disabled={loading !== null}>
+          {loading ? <Loader2 className="animate-spin" /> : <FileDown />}
+          <span className="hidden sm:inline">Relatório</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">

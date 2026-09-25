@@ -241,6 +241,14 @@
   scrollbar-color: var(--color-border-strong) transparent;
 }
 
+/* Segmento em forma de seta da barra de etapas (detalhe do negócio) */
+@utility chevron-step {
+  clip-path: polygon(0 0, calc(100% - 0.5rem) 0, 100% 50%, calc(100% - 0.5rem) 100%, 0 100%, 0.5rem 50%);
+}
+@utility chevron-step-first {
+  clip-path: polygon(0 0, calc(100% - 0.5rem) 0, 100% 50%, calc(100% - 0.5rem) 100%, 0 100%);
+}
+
 /* Valores monetários e colunas numéricas */
 @utility numeric {
   font-variant-numeric: tabular-nums;

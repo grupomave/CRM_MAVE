@@ -1,15 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
+import { useRouter } from "next/navigation";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { FormField } from "@/components/ui/form-field";
 import { createClient } from "@/lib/supabase/client";
+import { friendlyError, toast } from "@/lib/toast";
 
 const ROLE_LABEL: Record<string, string> = {
-  admin: "Admin",
+  admin: "Administrador",
   gestor: "Gestor",
   vendedor: "Vendedor",
 };
@@ -22,42 +24,51 @@ export function ProfileForm({
   role: string;
 }) {
   const [fullName, setFullName] = useState(initialFullName);
-  const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
-  const supabase = createClient();
+  const router = useRouter();
+  const nameError = !fullName.trim() ? "Informe seu nome" : undefined;
 
   async function onSave() {
+    if (nameError) return;
     setSaving(true);
+    const supabase = createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    if (user) {
-      await supabase.from("profiles").update({ full_name: fullName }).eq("id", user.id);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+    if (!user) {
+      setSaving(false);
+      toast.error("Sua sessão expirou", { description: "Entre novamente para continuar." });
+      return;
     }
+    const { error } = await supabase.from("profiles").update({ full_name: fullName.trim() }).eq("id", user.id);
     setSaving(false);
+    if (error) {
+      toast.error("Não foi possível salvar", { description: friendlyError(error) });
+      return;
+    }
+    toast.success("Perfil atualizado");
+    router.refresh();
   }
 
   return (
-    <div className="flex max-w-md flex-col gap-4">
+    <div className="flex flex-col gap-5">
       <Card>
-        <CardContent className="flex flex-col gap-4 p-5">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="fullName">Nome completo</Label>
+        <CardHeader>
+          <CardTitle>Dados pessoais</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          <FormField label="Nome completo" htmlFor="fullName" required error={nameError}>
             <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>Papel</Label>
-            <Badge variant="outline" className="w-fit">
+          </FormField>
+          <FormField label="Papel" hint="Alterado apenas por um administrador">
+            <Badge variant="neutral" className="w-fit">
               {ROLE_LABEL[role] ?? role}
             </Badge>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button onClick={onSave} disabled={saving}>
-              {saving ? "Salvando..." : "Salvar"}
+          </FormField>
+          <div className="border-t border-border pt-4">
+            <Button onClick={onSave} loading={saving} disabled={fullName.trim() === initialFullName}>
+              Salvar
             </Button>
-            {saved && <span className="text-sm text-success">Salvo!</span>}
           </div>
         </CardContent>
       </Card>
@@ -69,67 +80,66 @@ export function ProfileForm({
 function ChangePasswordCard() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
+  const [touched, setTouched] = useState(false);
   const [saving, setSaving] = useState(false);
-  const supabase = createClient();
+
+  const errors = {
+    password: password.length > 0 && password.length < 8 ? "A senha precisa ter pelo menos 8 caracteres" : undefined,
+    confirm:
+      touched && confirmPassword !== password ? "As senhas não coincidem" : undefined,
+  };
 
   async function onChangePassword() {
-    setError(null);
-    if (password.length < 8) {
-      setError("A senha precisa ter pelo menos 8 caracteres.");
-      return;
-    }
-    if (password !== confirmPassword) {
-      setError("As senhas não coincidem.");
-      return;
-    }
+    setTouched(true);
+    if (password.length < 8 || password !== confirmPassword) return;
 
     setSaving(true);
-    const { error: updateError } = await supabase.auth.updateUser({ password });
+    const supabase = createClient();
+    const { error } = await supabase.auth.updateUser({ password });
     setSaving(false);
 
-    if (updateError) {
-      setError("Não foi possível trocar a senha.");
+    if (error) {
+      toast.error("Não foi possível trocar a senha", { description: friendlyError(error) });
       return;
     }
 
     setPassword("");
     setConfirmPassword("");
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setTouched(false);
+    toast.success("Senha alterada");
   }
 
   return (
     <Card>
-      <CardContent className="flex flex-col gap-4 p-5">
-        <Label className="text-sm font-medium">Trocar senha</Label>
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="newPassword">Nova senha</Label>
-          <Input
-            id="newPassword"
-            type="password"
-            autoComplete="new-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
+      <CardHeader>
+        <CardTitle>Trocar senha</CardTitle>
+        <CardDescription>Use pelo menos 8 caracteres.</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FormField label="Nova senha" htmlFor="newPassword" required error={errors.password}>
+            <Input
+              id="newPassword"
+              type="password"
+              autoComplete="new-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </FormField>
+          <FormField label="Confirme a nova senha" htmlFor="confirmNewPassword" required error={errors.confirm}>
+            <Input
+              id="confirmNewPassword"
+              type="password"
+              autoComplete="new-password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+            />
+          </FormField>
         </div>
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="confirmNewPassword">Confirme a nova senha</Label>
-          <Input
-            id="confirmNewPassword"
-            type="password"
-            autoComplete="new-password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-          />
-        </div>
-        {error && <p className="text-sm text-destructive">{error}</p>}
-        <div className="flex items-center gap-2">
-          <Button onClick={onChangePassword} disabled={saving}>
-            {saving ? "Salvando..." : "Trocar senha"}
+        <div className="border-t border-border pt-4">
+          <Button onClick={onChangePassword} loading={saving} disabled={!password}>
+            Trocar senha
           </Button>
-          {saved && <span className="text-sm text-success">Senha alterada!</span>}
         </div>
       </CardContent>
     </Card>

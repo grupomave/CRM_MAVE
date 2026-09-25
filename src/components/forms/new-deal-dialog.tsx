@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { Plus } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -15,8 +16,10 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { FormField } from "@/components/ui/form-field";
+import { Combobox } from "@/components/ui/combobox";
+import { CurrencyInput, DateInput } from "@/components/ui/masked-inputs";
 import {
   Select,
   SelectContent,
@@ -28,13 +31,14 @@ import { NewOrganizationDialog } from "@/components/forms/new-organization-dialo
 import { NewContactDialog } from "@/components/forms/new-contact-dialog";
 import { createClient } from "@/lib/supabase/client";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
+import { friendlyError, toast } from "@/lib/toast";
 import type { UserRole } from "@/lib/supabase/types";
 
 const schema = z.object({
-  title: z.string().min(1, "Informe o nome do negócio"),
-  value: z.coerce.number().min(0),
+  title: z.string().trim().min(1, "Informe o nome do negócio"),
+  value: z.number({ invalid_type_error: "Informe um valor" }).min(0, "O valor não pode ser negativo"),
   pipeline_id: z.string().min(1, "Selecione um funil"),
-  stage_id: z.string().min(1, "Selecione um estágio"),
+  stage_id: z.string().min(1, "Selecione uma etapa"),
   organization_id: z.string().optional(),
   contact_id: z.string().optional(),
   owner_id: z.string().optional(),
@@ -48,6 +52,7 @@ type FormValues = z.infer<typeof schema>;
 interface Pipeline {
   id: string;
   name: string;
+  is_default?: boolean;
 }
 
 interface Stage {
@@ -86,14 +91,13 @@ export function NewDealDialog({
   const [owners, setOwners] = useState<Option[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentRole, setCurrentRole] = useState<UserRole | null>(null);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const supabase = createClient();
 
   const {
     register,
     handleSubmit,
     setValue,
-    watch,
+    getValues,
+    control,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
@@ -106,12 +110,15 @@ export function NewDealDialog({
     },
   });
 
-  const selectedPipelineId = watch("pipeline_id");
+  const selectedPipelineId = useWatch({ control, name: "pipeline_id" });
+  const selectedOrganizationId = useWatch({ control, name: "organization_id" });
+  const canChooseOwner = currentRole === "admin" || currentRole === "gestor";
 
   useEffect(() => {
     if (!open) return;
 
     (async () => {
+      const supabase = createClient();
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -123,16 +130,16 @@ export function NewDealDialog({
         await Promise.all([
           supabase.from("profiles").select("role").eq("id", user.id).single(),
           supabase.from("pipelines").select("id, name, is_default").order("name"),
-          fetchAllRows((from, to) =>
+          fetchAllRows<Option>((from, to) =>
             supabase.from("organizations").select("id, name").order("name").range(from, to),
           ),
-          fetchAllRows((from, to) =>
+          fetchAllRows<Option>((from, to) =>
             supabase.from("contacts").select("id, name").order("name").range(from, to),
           ),
         ]);
 
       setCurrentRole(profile?.role ?? null);
-      setPipelines(pipelinesData ?? []);
+      setPipelines((pipelinesData ?? []) as Pipeline[]);
       setOrganizations(organizationsData);
       setContacts(contactsData);
 
@@ -147,21 +154,20 @@ export function NewDealDialog({
 
       let effectivePipelineId = pipelineId;
       if (!effectivePipelineId) {
-        const defaultPipeline =
-          pipelinesData?.find((p: any) => p.is_default) ?? pipelinesData?.[0];
-        effectivePipelineId = defaultPipeline?.id;
+        const list = (pipelinesData ?? []) as Pipeline[];
+        effectivePipelineId = (list.find((p) => p.is_default) ?? list[0])?.id;
       }
-      if (effectivePipelineId && !watch("pipeline_id")) {
+      if (effectivePipelineId && !getValues("pipeline_id")) {
         setValue("pipeline_id", effectivePipelineId);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, pipelineId]);
+  }, [open, pipelineId, getValues, setValue]);
 
   useEffect(() => {
     if (!open || !selectedPipelineId) return;
 
     (async () => {
+      const supabase = createClient();
       const { data } = await supabase
         .from("pipeline_stages")
         .select("id, name, pipeline_id")
@@ -169,29 +175,26 @@ export function NewDealDialog({
         .order("order_index");
 
       setStages(data ?? []);
-      const currentStage = watch("stage_id");
-      const stageStillValid = data?.some((s) => s.id === currentStage);
+      const stageStillValid = data?.some((s) => s.id === getValues("stage_id"));
       if (!stageStillValid) {
-        setValue("stage_id", defaultStageId && data?.some((s) => s.id === defaultStageId)
-          ? defaultStageId
-          : data?.[0]?.id ?? "");
+        setValue(
+          "stage_id",
+          defaultStageId && data?.some((s) => s.id === defaultStageId)
+            ? defaultStageId
+            : (data?.[0]?.id ?? ""),
+        );
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, selectedPipelineId]);
+  }, [open, selectedPipelineId, defaultStageId, getValues, setValue]);
 
   async function onSubmit(values: FormValues) {
-    setSubmitError(null);
-
     if (!currentUserId) {
-      setSubmitError("Sessão expirada, faça login novamente.");
+      toast.error("Sua sessão expirou", { description: "Entre novamente para continuar." });
       return;
     }
 
-    const ownerId =
-      currentRole === "admin" || currentRole === "gestor"
-        ? values.owner_id || currentUserId
-        : currentUserId;
+    const ownerId = canChooseOwner ? values.owner_id || currentUserId : currentUserId;
+    const supabase = createClient();
 
     const { data: deal, error } = await supabase
       .from("deals")
@@ -212,7 +215,7 @@ export function NewDealDialog({
       .single();
 
     if (error || !deal) {
-      setSubmitError("Não foi possível criar o negócio. Tente novamente.");
+      toast.error("Não foi possível criar o negócio", { description: friendlyError(error) });
       return;
     }
 
@@ -224,6 +227,7 @@ export function NewDealDialog({
       });
     }
 
+    toast.success("Negócio criado", { description: values.title });
     reset();
     setOpen(false);
     onCreated?.();
@@ -232,99 +236,97 @@ export function NewDealDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-      <DialogContent className="max-h-[85vh] overflow-y-auto">
+      <DialogContent size="lg">
         <DialogHeader>
           <DialogTitle>Novo negócio</DialogTitle>
-          <DialogDescription>
-            Cria um negócio no funil selecionado.
-          </DialogDescription>
+          <DialogDescription>Campos com * são obrigatórios.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="title">Nome do negócio</Label>
-            <Input id="title" {...register("title")} autoFocus />
-            {errors.title && (
-              <p className="text-xs text-destructive">{errors.title.message}</p>
-            )}
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_12rem]">
+            <FormField label="Nome do negócio" htmlFor="deal-title" required error={errors.title?.message}>
+              <Input id="deal-title" autoFocus placeholder="Ex.: Portaria 24h — Condomínio Aurora" {...register("title")} />
+            </FormField>
+            <FormField label="Valor" htmlFor="deal-value" required error={errors.value?.message}>
+              <Controller
+                control={control}
+                name="value"
+                render={({ field }) => (
+                  <CurrencyInput
+                    id="deal-value"
+                    value={field.value ?? null}
+                    onValueChange={(v) => field.onChange(v ?? 0)}
+                  />
+                )}
+              />
+            </FormField>
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="value">Valor (R$)</Label>
-            <Input id="value" type="number" step="0.01" {...register("value")} />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <FormField label="Funil" htmlFor="deal-pipeline" required error={errors.pipeline_id?.message}>
+              <Controller
+                control={control}
+                name="pipeline_id"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger id="deal-pipeline" aria-invalid={!!errors.pipeline_id}>
+                      <SelectValue placeholder="Selecione o funil" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {pipelines.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </FormField>
+
+            <FormField label="Etapa" htmlFor="deal-stage" required error={errors.stage_id?.message}>
+              <Controller
+                control={control}
+                name="stage_id"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger id="deal-stage" aria-invalid={!!errors.stage_id}>
+                      <SelectValue placeholder="Selecione a etapa" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {stages.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </FormField>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="flex flex-col gap-1.5">
-              <Label>Funil</Label>
-              <Select
-                value={watch("pipeline_id")}
-                onValueChange={(v) => setValue("pipeline_id", v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o funil" />
-                </SelectTrigger>
-                <SelectContent>
-                  {pipelines.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.pipeline_id && (
-                <p className="text-xs text-destructive">
-                  {errors.pipeline_id.message}
-                </p>
-              )}
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label>Estágio</Label>
-              <Select
-                value={watch("stage_id")}
-                onValueChange={(v) => setValue("stage_id", v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o estágio" />
-                </SelectTrigger>
-                <SelectContent>
-                  {stages.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.stage_id && (
-                <p className="text-xs text-destructive">
-                  {errors.stage_id.message}
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label>Organização</Label>
+          <FormField label="Organização" htmlFor="deal-org">
             <div className="flex gap-2">
-              <Select
-                value={watch("organization_id") ?? ""}
-                onValueChange={(v) => setValue("organization_id", v)}
-              >
-                <SelectTrigger className="flex-1">
-                  <SelectValue placeholder="Nenhuma" />
-                </SelectTrigger>
-                <SelectContent>
-                  {organizations.map((o) => (
-                    <SelectItem key={o.id} value={o.id}>
-                      {o.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Controller
+                control={control}
+                name="organization_id"
+                render={({ field }) => (
+                  <Combobox
+                    id="deal-org"
+                    className="min-w-0 flex-1"
+                    value={field.value ?? null}
+                    onChange={(v) => field.onChange(v ?? "")}
+                    options={organizations.map((o) => ({ value: o.id, label: o.name }))}
+                    placeholder="Nenhuma"
+                    searchPlaceholder="Buscar organização..."
+                  />
+                )}
+              />
               <NewOrganizationDialog
                 trigger={
-                  <Button type="button" variant="outline">
-                    Nova
+                  <Button type="button" variant="secondary" aria-label="Nova organização">
+                    <Plus />
+                    <span className="hidden sm:inline">Nova</span>
                   </Button>
                 }
                 onCreated={(created) => {
@@ -334,31 +336,31 @@ export function NewDealDialog({
                 }}
               />
             </div>
-          </div>
+          </FormField>
 
-          <div className="flex flex-col gap-1.5">
-            <Label>Contato</Label>
+          <FormField label="Pessoa de contato" htmlFor="deal-contact">
             <div className="flex gap-2">
-              <Select
-                value={watch("contact_id") ?? ""}
-                onValueChange={(v) => setValue("contact_id", v)}
-              >
-                <SelectTrigger className="flex-1">
-                  <SelectValue placeholder="Nenhum" />
-                </SelectTrigger>
-                <SelectContent>
-                  {contacts.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Controller
+                control={control}
+                name="contact_id"
+                render={({ field }) => (
+                  <Combobox
+                    id="deal-contact"
+                    className="min-w-0 flex-1"
+                    value={field.value ?? null}
+                    onChange={(v) => field.onChange(v ?? "")}
+                    options={contacts.map((c) => ({ value: c.id, label: c.name }))}
+                    placeholder="Nenhuma"
+                    searchPlaceholder="Buscar pessoa..."
+                  />
+                )}
+              />
               <NewContactDialog
-                organizationId={watch("organization_id")}
+                organizationId={selectedOrganizationId || undefined}
                 trigger={
-                  <Button type="button" variant="outline">
-                    Novo
+                  <Button type="button" variant="secondary" aria-label="Novo contato">
+                    <Plus />
+                    <span className="hidden sm:inline">Nova</span>
                   </Button>
                 }
                 onCreated={(created) => {
@@ -368,52 +370,52 @@ export function NewDealDialog({
                 }}
               />
             </div>
-          </div>
+          </FormField>
 
-          {(currentRole === "admin" || currentRole === "gestor") && (
-            <div className="flex flex-col gap-1.5">
-              <Label>Responsável</Label>
-              <Select
-                value={watch("owner_id") ?? ""}
-                onValueChange={(v) => setValue("owner_id", v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Você mesmo" />
-                </SelectTrigger>
-                <SelectContent>
-                  {owners.map((o) => (
-                    <SelectItem key={o.id} value={o.id}>
-                      {o.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          {canChooseOwner && (
+            <FormField label="Responsável" htmlFor="deal-owner" hint="Em branco: você mesmo">
+              <Controller
+                control={control}
+                name="owner_id"
+                render={({ field }) => (
+                  <Combobox
+                    id="deal-owner"
+                    value={field.value ?? null}
+                    onChange={(v) => field.onChange(v ?? "")}
+                    options={owners.map((o) => ({ value: o.id, label: o.name }))}
+                    placeholder="Você mesmo"
+                    searchPlaceholder="Buscar usuário..."
+                  />
+                )}
+              />
+            </FormField>
           )}
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="source">Origem</Label>
-              <Input id="source" {...register("source")} placeholder="Indicação, site..." />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="expected_close_date">Previsão de fechamento</Label>
-              <Input id="expected_close_date" type="date" {...register("expected_close_date")} />
-            </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <FormField label="Origem" htmlFor="deal-source">
+              <Input id="deal-source" placeholder="Indicação, site, evento..." {...register("source")} />
+            </FormField>
+            <FormField label="Previsão de fechamento" htmlFor="deal-close">
+              <Controller
+                control={control}
+                name="expected_close_date"
+                render={({ field }) => (
+                  <DateInput id="deal-close" value={field.value ?? ""} onValueChange={field.onChange} />
+                )}
+              />
+            </FormField>
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="notes">Observações</Label>
-            <Textarea id="notes" {...register("notes")} rows={3} />
-          </div>
-
-          {submitError && (
-            <p className="text-sm text-destructive">{submitError}</p>
-          )}
+          <FormField label="Observações" htmlFor="deal-notes" hint="Vira a primeira anotação do negócio">
+            <Textarea id="deal-notes" rows={3} {...register("notes")} />
+          </FormField>
 
           <DialogFooter>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Criando..." : "Criar negócio"}
+            <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" loading={isSubmitting}>
+              Criar negócio
             </Button>
           </DialogFooter>
         </form>

@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -14,8 +15,9 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { FormField } from "@/components/ui/form-field";
+import { MaskedInput } from "@/components/ui/masked-inputs";
 import {
   Select,
   SelectContent,
@@ -24,16 +26,25 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createClient } from "@/lib/supabase/client";
-import { maskCNPJ, maskPhoneBR } from "@/lib/utils";
+import { friendlyError, toast } from "@/lib/toast";
+import { BR_STATES, isValidCNPJ, isValidPhoneBR } from "@/lib/masks";
+
+const NONE = "__none__";
 
 const schema = z.object({
-  name: z.string().min(1, "Informe o nome"),
+  name: z.string().trim().min(1, "Informe o nome fantasia"),
   legal_name: z.string().optional(),
-  cnpj: z.string().optional(),
+  cnpj: z
+    .string()
+    .optional()
+    .refine((v) => !v || isValidCNPJ(v), "CNPJ inválido — confira os dígitos"),
   sector: z.string().optional(),
   company_size: z.string().optional(),
   nature: z.enum(["publica", "privada"]).optional(),
-  phone: z.string().optional(),
+  phone: z
+    .string()
+    .optional()
+    .refine((v) => !v || isValidPhoneBR(v), "Telefone incompleto — use DDD + número"),
   city: z.string().optional(),
   state: z.string().optional(),
   website: z.string().optional(),
@@ -54,25 +65,22 @@ export function NewOrganizationDialog({
   onCreated?: (created?: { id: string; name: string }) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const supabase = createClient();
 
   const {
     register,
     handleSubmit,
-    watch,
-    setValue,
+    control,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
   async function onSubmit(values: FormValues) {
-    setSubmitError(null);
+    const supabase = createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) {
-      setSubmitError("Sessão expirada, faça login novamente.");
+      toast.error("Sua sessão expirou", { description: "Entre novamente para continuar." });
       return;
     }
 
@@ -100,10 +108,11 @@ export function NewOrganizationDialog({
       .single();
 
     if (error) {
-      setSubmitError("Não foi possível criar a organização.");
+      toast.error("Não foi possível criar a organização", { description: friendlyError(error) });
       return;
     }
 
+    toast.success("Organização criada", { description: values.name });
     reset();
     setOpen(false);
     onCreated?.(data ?? undefined);
@@ -112,11 +121,13 @@ export function NewOrganizationDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent size="lg">
         <DialogHeader>
           <DialogTitle>Nova organização</DialogTitle>
+          <DialogDescription>Campos com * são obrigatórios.</DialogDescription>
         </DialogHeader>
         <form
+          noValidate
           onSubmit={(e) => {
             // O DialogContent do Radix é portalizado para fora do form pai no
             // DOM, mas o React ainda propaga o evento pela árvore de
@@ -127,112 +138,107 @@ export function NewOrganizationDialog({
           }}
           className="flex flex-col gap-4"
         >
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="name">Nome fantasia</Label>
-            <Input id="name" {...register("name")} autoFocus />
-            {errors.name && (
-              <p className="text-xs text-destructive">{errors.name.message}</p>
-            )}
-          </div>
+          <FormField label="Nome fantasia" htmlFor="org-name" required error={errors.name?.message}>
+            <Input id="org-name" autoFocus placeholder="Como a empresa é conhecida" {...register("name")} />
+          </FormField>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="legal_name">Razão social</Label>
-              <Input id="legal_name" {...register("legal_name")} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="cnpj">CNPJ</Label>
-              <Input
-                id="cnpj"
-                {...register("cnpj")}
-                value={watch("cnpj") ?? ""}
-                onChange={(e) => setValue("cnpj", maskCNPJ(e.target.value))}
-                placeholder="00.000.000/0000-00"
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <FormField label="Razão social" htmlFor="org-legal">
+              <Input id="org-legal" {...register("legal_name")} />
+            </FormField>
+            <FormField label="CNPJ" htmlFor="org-cnpj" error={errors.cnpj?.message}>
+              <MaskedInput id="org-cnpj" mask="cnpj" {...register("cnpj")} />
+            </FormField>
+            <FormField label="Setor" htmlFor="org-sector">
+              <Input id="org-sector" placeholder="Ex.: Condomínio, Indústria" {...register("sector")} />
+            </FormField>
+            <FormField label="Porte" htmlFor="org-size" hint="Número aproximado de funcionários">
+              <Input id="org-size" {...register("company_size")} />
+            </FormField>
+            <FormField label="Natureza" htmlFor="org-nature">
+              <Controller
+                control={control}
+                name="nature"
+                render={({ field }) => (
+                  <Select
+                    value={field.value ?? NONE}
+                    onValueChange={(v) => field.onChange(v === NONE ? undefined : v)}
+                  >
+                    <SelectTrigger id="org-nature">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NONE}>Não informada</SelectItem>
+                      <SelectItem value="publica">Pública</SelectItem>
+                      <SelectItem value="privada">Privada</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
               />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="sector">Setor</Label>
-              <Input id="sector" {...register("sector")} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="company_size">Porte (nº de funcionários)</Label>
-              <Input id="company_size" {...register("company_size")} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Natureza</Label>
-              <Select
-                value={watch("nature") ?? "none"}
-                onValueChange={(v) =>
-                  setValue("nature", v === "none" ? undefined : (v as "publica" | "privada"))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="—" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">—</SelectItem>
-                  <SelectItem value="publica">Pública</SelectItem>
-                  <SelectItem value="privada">Privada</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="phone">Telefone</Label>
-              <Input
-                id="phone"
-                {...register("phone")}
-                value={watch("phone") ?? ""}
-                onChange={(e) => setValue("phone", maskPhoneBR(e.target.value))}
-                placeholder="(00) 00000-0000"
+            </FormField>
+            <FormField label="Telefone" htmlFor="org-phone" error={errors.phone?.message}>
+              <MaskedInput id="org-phone" mask="phone" {...register("phone")} />
+            </FormField>
+            <FormField label="Cidade" htmlFor="org-city">
+              <Input id="org-city" {...register("city")} />
+            </FormField>
+            <FormField label="UF" htmlFor="org-state">
+              <Controller
+                control={control}
+                name="state"
+                render={({ field }) => (
+                  <Select
+                    value={field.value || NONE}
+                    onValueChange={(v) => field.onChange(v === NONE ? "" : v)}
+                  >
+                    <SelectTrigger id="org-state">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NONE}>Selecione</SelectItem>
+                      {BR_STATES.map((uf) => (
+                        <SelectItem key={uf} value={uf}>
+                          {uf}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="city">Cidade</Label>
-              <Input id="city" {...register("city")} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="state">Estado</Label>
-              <Input id="state" {...register("state")} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="website">Site</Label>
-              <Input id="website" {...register("website")} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="linkedin_url">LinkedIn</Label>
-              <Input id="linkedin_url" {...register("linkedin_url")} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="instagram_url">Instagram</Label>
-              <Input id="instagram_url" {...register("instagram_url")} />
-            </div>
+            </FormField>
+            <FormField label="Site" htmlFor="org-site">
+              <Input id="org-site" type="url" placeholder="https://" {...register("website")} />
+            </FormField>
+            <FormField label="LinkedIn" htmlFor="org-linkedin">
+              <Input id="org-linkedin" type="url" placeholder="https://linkedin.com/company/..." {...register("linkedin_url")} />
+            </FormField>
+            <FormField label="Instagram" htmlFor="org-instagram">
+              <Input id="org-instagram" placeholder="@empresa" {...register("instagram_url")} />
+            </FormField>
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="address">Endereço</Label>
-            <Input id="address" {...register("address")} />
-          </div>
+          <FormField label="Endereço" htmlFor="org-address">
+            <Input id="org-address" placeholder="Rua, número, bairro" {...register("address")} />
+          </FormField>
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="services_of_interest">Serviços de interesse</Label>
+          <FormField label="Serviços de interesse" htmlFor="org-services">
             <Input
-              id="services_of_interest"
+              id="org-services"
+              placeholder="Ex.: Portaria, Limpeza e Vigilância"
               {...register("services_of_interest")}
-              placeholder="ex.: Portaria, Limpeza e Vigilância"
             />
-          </div>
+          </FormField>
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="notes">Observações</Label>
-            <Textarea id="notes" {...register("notes")} rows={2} />
-          </div>
+          <FormField label="Observações" htmlFor="org-notes">
+            <Textarea id="org-notes" rows={2} {...register("notes")} />
+          </FormField>
 
-          {submitError && (
-            <p className="text-sm text-destructive">{submitError}</p>
-          )}
           <DialogFooter>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Criando..." : "Criar organização"}
+            <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" loading={isSubmitting}>
+              Criar organização
             </Button>
           </DialogFooter>
         </form>

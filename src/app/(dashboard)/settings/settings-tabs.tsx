@@ -2,12 +2,33 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { KeyRound, MoreHorizontal, Pencil, Plus, Power, Trash2, Users as UsersIcon } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { UserAvatar } from "@/components/ui/avatar";
+import { EmptyState } from "@/components/ui/empty-state";
+import { FormField } from "@/components/ui/form-field";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -31,7 +52,8 @@ import {
   setUserActive,
   deleteUser,
 } from "@/lib/actions/users";
-import { maskPhoneBR } from "@/lib/utils";
+import { maskPhoneBR } from "@/lib/masks";
+import { friendlyError, toast } from "@/lib/toast";
 import type { UserRole, CustomFieldType, EntityType } from "@/lib/supabase/types";
 
 interface Profile {
@@ -87,7 +109,7 @@ export function SettingsTabs({
 }) {
   return (
     <Tabs defaultValue="users">
-      <TabsList>
+      <TabsList variant="underline">
         <TabsTrigger value="users">Usuários e permissões</TabsTrigger>
         <TabsTrigger value="pipelines">Pipelines e estágios</TabsTrigger>
         <TabsTrigger value="fields">Campos customizados</TabsTrigger>
@@ -106,150 +128,215 @@ export function SettingsTabs({
   );
 }
 
+const ROLE_LABEL: Record<UserRole, string> = {
+  admin: "Administrador",
+  gestor: "Gestor",
+  vendedor: "Vendedor",
+};
+
 function UsersTab({ profiles, teams }: { profiles: Profile[]; teams: Team[] }) {
   const router = useRouter();
-  const supabase = createClient();
-  const [togglingId, setTogglingId] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Profile | null>(null);
+  const [resetting, setResetting] = useState<Profile | null>(null);
+  const teamName = new Map(teams.map((t) => [t.id, t.name]));
 
   const sorted = [...profiles].sort((a, b) => {
     if (a.is_active !== b.is_active) return a.is_active ? -1 : 1;
-    return a.full_name.localeCompare(b.full_name);
+    return a.full_name.localeCompare(b.full_name, "pt-BR");
   });
 
+  async function onChangeRole(profile: Profile, role: UserRole) {
+    const supabase = createClient();
+    const { error } = await supabase.from("profiles").update({ role }).eq("id", profile.id);
+    if (error) {
+      toast.error("Não foi possível alterar o papel", { description: friendlyError(error) });
+      return;
+    }
+    toast.success(`${profile.full_name} agora é ${ROLE_LABEL[role].toLowerCase()}`);
+    router.refresh();
+  }
+
   async function onToggleActive(profile: Profile) {
-    setTogglingId(profile.id);
+    if (profile.is_active) {
+      const ok = await confirmDialog({
+        title: `Desativar ${profile.full_name}?`,
+        description: "O usuário perde o acesso ao CRM, mas os registros dele são mantidos. É possível reativar depois.",
+        confirmLabel: "Desativar",
+        destructive: true,
+      });
+      if (!ok) return;
+    }
+    setBusyId(profile.id);
     try {
       await setUserActive(profile.id, !profile.is_active);
+      toast.success(profile.is_active ? "Usuário desativado" : "Usuário reativado");
       router.refresh();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Não foi possível alterar o usuário.");
+      toast.error("Não foi possível alterar o usuário", {
+        description: err instanceof Error ? err.message : undefined,
+      });
     }
-    setTogglingId(null);
+    setBusyId(null);
   }
 
   async function onDelete(profile: Profile) {
-    if (
-      !window.confirm(
-        `Excluir o usuário "${profile.full_name}"? Essa ação não pode ser desfeita.`,
-      )
-    )
-      return;
+    const ok = await confirmDialog({
+      title: `Excluir o usuário ${profile.full_name}?`,
+      description: "Essa ação não pode ser desfeita. Prefira desativar se ele tiver registros no CRM.",
+      confirmLabel: "Excluir usuário",
+      destructive: true,
+    });
+    if (!ok) return;
 
-    setDeletingId(profile.id);
+    setBusyId(profile.id);
     try {
       await deleteUser(profile.id);
+      toast.success("Usuário excluído");
       router.refresh();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Não foi possível excluir o usuário.");
+      toast.error("Não foi possível excluir o usuário", {
+        description: err instanceof Error ? err.message : undefined,
+      });
     }
-    setDeletingId(null);
+    setBusyId(null);
   }
 
   return (
     <div className="flex flex-col gap-4">
-      <CreateUserDialog teams={teams} onCreated={() => router.refresh()} />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-muted-foreground">
+          {profiles.filter((p) => p.is_active).length} ativos de {profiles.length} usuários
+        </p>
+        <CreateUserDialog teams={teams} onCreated={() => router.refresh()} />
+      </div>
 
-      <div className="flex flex-col gap-2">
-        {sorted.map((p) => (
-          <Card key={p.id}>
-            <CardContent className="flex flex-wrap items-center justify-between gap-4 p-4">
-              <div className="flex flex-col gap-0.5">
-                <span className="flex items-center gap-2 text-sm font-medium">
-                  {p.full_name}
-                  {!p.is_active && (
-                    <Badge variant="outline" className="text-muted-foreground">
-                      inativo
-                    </Badge>
-                  )}
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Usuário</TableHead>
+            <TableHead>Telefone</TableHead>
+            <TableHead>Equipe</TableHead>
+            <TableHead>Papel</TableHead>
+            <TableHead className="w-12">
+              <span className="sr-only">Ações</span>
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {sorted.map((p) => (
+            <TableRow key={p.id} className={p.is_active ? undefined : "opacity-60"}>
+              <TableCell>
+                <span className="flex items-center gap-3">
+                  <UserAvatar name={p.full_name} showTooltip={false} />
+                  <span className="flex min-w-0 flex-col">
+                    <span className="flex items-center gap-2 font-medium">
+                      {p.full_name}
+                      {!p.is_active && <Badge variant="neutral">Inativo</Badge>}
+                    </span>
+                    <span className="truncate text-caption text-muted-foreground">{p.email ?? "—"}</span>
+                  </span>
                 </span>
-                <span className="text-xs text-muted-foreground">
-                  {p.email ?? "—"}
-                  {p.phone && ` · ${p.phone}`}
-                </span>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Select
-                  value={p.role}
-                  onValueChange={async (value) => {
-                    await supabase
-                      .from("profiles")
-                      .update({ role: value as UserRole })
-                      .eq("id", p.id);
-                    router.refresh();
-                  }}
-                >
-                  <SelectTrigger className="w-40">
+              </TableCell>
+              <TableCell className="numeric whitespace-nowrap text-muted-foreground">{p.phone ?? "—"}</TableCell>
+              <TableCell className="text-muted-foreground">{p.team_id ? (teamName.get(p.team_id) ?? "—") : "—"}</TableCell>
+              <TableCell>
+                <Select value={p.role} onValueChange={(v) => onChangeRole(p, v as UserRole)}>
+                  <SelectTrigger size="sm" className="w-36" aria-label={`Papel de ${p.full_name}`}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="gestor">Gestor</SelectItem>
-                    <SelectItem value="vendedor">Vendedor</SelectItem>
+                    {(Object.keys(ROLE_LABEL) as UserRole[]).map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {ROLE_LABEL[r]}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
-                <EditUserDialog profile={p} onSaved={() => router.refresh()} />
-                <ResetPasswordDialog profile={p} />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={togglingId === p.id}
-                  onClick={() => onToggleActive(p)}
-                >
-                  {p.is_active ? "Desativar" : "Ativar"}
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  disabled={deletingId === p.id}
-                  onClick={() => onDelete(p)}
-                >
-                  Excluir
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-        {profiles.length === 0 && (
-          <p className="text-sm text-muted-foreground">
-            Nenhum usuário encontrado.
-          </p>
-        )}
-      </div>
+              </TableCell>
+              <TableCell>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      disabled={busyId === p.id}
+                      aria-label={`Ações de ${p.full_name}`}
+                    >
+                      <MoreHorizontal />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onSelect={() => setEditing(p)}>
+                      <Pencil />
+                      Editar dados
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => setResetting(p)}>
+                      <KeyRound />
+                      Redefinir senha
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => onToggleActive(p)}>
+                      <Power />
+                      {p.is_active ? "Desativar" : "Reativar"}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem variant="destructive" onSelect={() => onDelete(p)}>
+                      <Trash2 />
+                      Excluir usuário
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </TableCell>
+            </TableRow>
+          ))}
+          {profiles.length === 0 && (
+            <TableRow className="hover:bg-transparent">
+              <TableCell colSpan={5}>
+                <EmptyState icon={UsersIcon} title="Nenhum usuário encontrado" />
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+
+      {editing && (
+        <EditUserDialog
+          key={editing.id}
+          profile={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => router.refresh()}
+        />
+      )}
+      {resetting && (
+        <ResetPasswordDialog key={resetting.id} profile={resetting} onClose={() => setResetting(null)} />
+      )}
     </div>
   );
 }
 
 function EditUserDialog({
   profile,
+  onClose,
   onSaved,
 }: {
   profile: Profile;
+  onClose: () => void;
   onSaved?: () => void;
 }) {
-  const [open, setOpen] = useState(false);
   const [fullName, setFullName] = useState(profile.full_name);
   const [email, setEmail] = useState(profile.email ?? "");
   const [phone, setPhone] = useState(profile.phone ?? "");
-  const [error, setError] = useState<string | null>(null);
+  const [touched, setTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  function onOpenChange(next: boolean) {
-    if (next) {
-      setFullName(profile.full_name);
-      setEmail(profile.email ?? "");
-      setPhone(profile.phone ?? "");
-      setError(null);
-    }
-    setOpen(next);
-  }
+  const errors = {
+    fullName: touched && !fullName.trim() ? "Informe o nome" : undefined,
+    email: touched && !email.trim() ? "Informe o e-mail" : undefined,
+  };
 
   async function onSubmit() {
-    setError(null);
-    if (!fullName.trim() || !email.trim()) {
-      setError("Preencha nome e e-mail.");
-      return;
-    }
+    setTouched(true);
+    if (!fullName.trim() || !email.trim()) return;
 
     setSubmitting(true);
     try {
@@ -259,59 +346,46 @@ function EditUserDialog({
         email: email.trim(),
         phone: phone.trim() || null,
       });
-      setOpen(false);
+      toast.success("Usuário atualizado");
+      onClose();
       onSaved?.();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Não foi possível salvar.");
+      toast.error("Não foi possível salvar", {
+        description: err instanceof Error ? err.message : undefined,
+      });
     }
     setSubmitting(false);
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          Editar
-        </Button>
-      </DialogTrigger>
+    <Dialog open onOpenChange={(next) => !next && onClose()}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Editar usuário</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor={`editFullName-${profile.id}`}>Nome completo</Label>
+          <FormField label="Nome completo" htmlFor="editFullName" required error={errors.fullName}>
+            <Input id="editFullName" value={fullName} onChange={(e) => setFullName(e.target.value)} autoFocus />
+          </FormField>
+          <FormField label="E-mail" htmlFor="editEmail" required error={errors.email}>
+            <Input id="editEmail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          </FormField>
+          <FormField label="Telefone" htmlFor="editPhone">
             <Input
-              id={`editFullName-${profile.id}`}
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              autoFocus
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor={`editEmail-${profile.id}`}>E-mail</Label>
-            <Input
-              id={`editEmail-${profile.id}`}
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor={`editPhone-${profile.id}`}>Telefone</Label>
-            <Input
-              id={`editPhone-${profile.id}`}
+              id="editPhone"
               type="tel"
               value={phone}
               onChange={(e) => setPhone(maskPhoneBR(e.target.value))}
               placeholder="(00) 00000-0000"
             />
-          </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          </FormField>
         </div>
         <DialogFooter>
-          <Button onClick={onSubmit} disabled={submitting}>
-            {submitting ? "Salvando..." : "Salvar"}
+          <Button variant="secondary" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button onClick={onSubmit} loading={submitting}>
+            Salvar
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -319,82 +393,62 @@ function EditUserDialog({
   );
 }
 
-function ResetPasswordDialog({ profile }: { profile: Profile }) {
-  const [open, setOpen] = useState(false);
+function ResetPasswordDialog({ profile, onClose }: { profile: Profile; onClose: () => void }) {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [touched, setTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  function onOpenChange(next: boolean) {
-    if (next) {
-      setPassword("");
-      setConfirmPassword("");
-      setError(null);
-    }
-    setOpen(next);
-  }
+  const errors = {
+    password: touched && password.length < 8 ? "A senha precisa ter pelo menos 8 caracteres" : undefined,
+    confirm: touched && password !== confirmPassword ? "As senhas não coincidem" : undefined,
+  };
 
   async function onSubmit() {
-    setError(null);
-    if (password.length < 8) {
-      setError("A senha precisa ter pelo menos 8 caracteres.");
-      return;
-    }
-    if (password !== confirmPassword) {
-      setError("As senhas não coincidem.");
-      return;
-    }
+    setTouched(true);
+    if (password.length < 8 || password !== confirmPassword) return;
 
     setSubmitting(true);
     try {
       await resetUserPassword(profile.id, password);
-      setOpen(false);
+      toast.success("Senha redefinida", { description: "O usuário troca a senha no próximo login." });
+      onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Não foi possível redefinir a senha.");
+      toast.error("Não foi possível redefinir a senha", {
+        description: err instanceof Error ? err.message : undefined,
+      });
     }
     setSubmitting(false);
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          Redefinir senha
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
+    <Dialog open onOpenChange={(next) => !next && onClose()}>
+      <DialogContent size="sm">
         <DialogHeader>
-          <DialogTitle>Redefinir senha de {profile.full_name}</DialogTitle>
+          <DialogTitle>Redefinir senha</DialogTitle>
+          <DialogDescription>
+            Nova senha temporária para {profile.full_name}. Ele precisará trocá-la no próximo login.
+          </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-4">
-          <p className="text-sm text-muted-foreground">
-            O usuário precisará trocar essa senha no próximo login.
-          </p>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor={`resetPassword-${profile.id}`}>Nova senha</Label>
+          <FormField label="Nova senha" htmlFor="resetPassword" required error={errors.password}>
+            <Input id="resetPassword" type="text" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus />
+          </FormField>
+          <FormField label="Confirme a senha" htmlFor="resetPasswordConfirm" required error={errors.confirm}>
             <Input
-              id={`resetPassword-${profile.id}`}
-              type="text"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoFocus
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor={`resetPasswordConfirm-${profile.id}`}>Confirme a senha</Label>
-            <Input
-              id={`resetPasswordConfirm-${profile.id}`}
+              id="resetPasswordConfirm"
               type="text"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
             />
-          </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          </FormField>
         </div>
         <DialogFooter>
-          <Button onClick={onSubmit} disabled={submitting}>
-            {submitting ? "Salvando..." : "Redefinir senha"}
+          <Button variant="secondary" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button onClick={onSubmit} loading={submitting}>
+            Redefinir senha
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -416,19 +470,19 @@ function CreateUserDialog({
   const [role, setRole] = useState<UserRole>("vendedor");
   const [teamId, setTeamId] = useState<string>("");
   const [tempPassword, setTempPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [touched, setTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  const errors = {
+    fullName: touched && !fullName.trim() ? "Informe o nome" : undefined,
+    email: touched && !email.trim() ? "Informe o e-mail" : undefined,
+    tempPassword:
+      touched && tempPassword.length < 8 ? "A senha temporária precisa ter pelo menos 8 caracteres" : undefined,
+  };
+
   async function onSubmit() {
-    setError(null);
-    if (!fullName.trim() || !email.trim()) {
-      setError("Preencha nome e e-mail.");
-      return;
-    }
-    if (tempPassword.length < 8) {
-      setError("A senha temporária precisa ter pelo menos 8 caracteres.");
-      return;
-    }
+    setTouched(true);
+    if (!fullName.trim() || !email.trim() || tempPassword.length < 8) return;
 
     setSubmitting(true);
     try {
@@ -440,16 +494,20 @@ function CreateUserDialog({
         teamId: teamId || null,
         tempPassword,
       });
+      toast.success("Usuário criado", { description: `${fullName.trim()} já pode entrar com a senha temporária.` });
       setFullName("");
       setEmail("");
       setPhone("");
       setTempPassword("");
       setRole("vendedor");
       setTeamId("");
+      setTouched(false);
       setOpen(false);
       onCreated?.();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Não foi possível criar o usuário.");
+      toast.error("Não foi possível criar o usuário", {
+        description: err instanceof Error ? err.message : undefined,
+      });
     }
     setSubmitting(false);
   }
@@ -457,33 +515,30 @@ function CreateUserDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="self-start">Criar usuário</Button>
+        <Button>
+          <Plus />
+          Criar usuário
+        </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Criar usuário</DialogTitle>
+          <DialogDescription>O usuário troca a senha temporária no primeiro acesso.</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="userFullName">Nome completo</Label>
-            <Input
-              id="userFullName"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              autoFocus
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="userEmail">E-mail</Label>
+          <FormField label="Nome completo" htmlFor="userFullName" required error={errors.fullName}>
+            <Input id="userFullName" value={fullName} onChange={(e) => setFullName(e.target.value)} autoFocus />
+          </FormField>
+          <FormField label="E-mail" htmlFor="userEmail" required error={errors.email}>
             <Input
               id="userEmail"
               type="email"
+              placeholder="nome@grupomave.com.br"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="userPhone">Telefone</Label>
+          </FormField>
+          <FormField label="Telefone" htmlFor="userPhone">
             <Input
               id="userPhone"
               type="tel"
@@ -491,35 +546,34 @@ function CreateUserDialog({
               onChange={(e) => setPhone(maskPhoneBR(e.target.value))}
               placeholder="(00) 00000-0000"
             />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="userTempPassword">Senha temporária</Label>
+          </FormField>
+          <FormField label="Senha temporária" htmlFor="userTempPassword" required error={errors.tempPassword}>
             <Input
               id="userTempPassword"
               type="text"
               value={tempPassword}
               onChange={(e) => setTempPassword(e.target.value)}
-              placeholder="Informe a senha inicial (o usuário troca no 1º login)"
+              placeholder="Mínimo de 8 caracteres"
             />
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="flex flex-col gap-1.5">
-              <Label>Papel</Label>
+          </FormField>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <FormField label="Papel" htmlFor="userRole">
               <Select value={role} onValueChange={(v) => setRole(v as UserRole)}>
-                <SelectTrigger>
+                <SelectTrigger id="userRole">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="gestor">Gestor</SelectItem>
-                  <SelectItem value="vendedor">Vendedor</SelectItem>
+                  {(Object.keys(ROLE_LABEL) as UserRole[]).map((r) => (
+                    <SelectItem key={r} value={r}>
+                      {ROLE_LABEL[r]}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Equipe</Label>
+            </FormField>
+            <FormField label="Equipe" htmlFor="userTeam">
               <Select value={teamId} onValueChange={setTeamId}>
-                <SelectTrigger>
+                <SelectTrigger id="userTeam">
                   <SelectValue placeholder="Nenhuma" />
                 </SelectTrigger>
                 <SelectContent>
@@ -530,13 +584,15 @@ function CreateUserDialog({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </FormField>
           </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
         <DialogFooter>
-          <Button onClick={onSubmit} disabled={submitting}>
-            {submitting ? "Criando..." : "Criar usuário"}
+          <Button variant="secondary" onClick={() => setOpen(false)}>
+            Cancelar
+          </Button>
+          <Button onClick={onSubmit} loading={submitting}>
+            Criar usuário
           </Button>
         </DialogFooter>
       </DialogContent>

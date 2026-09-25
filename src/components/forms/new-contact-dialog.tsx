@@ -15,14 +15,19 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FormField } from "@/components/ui/form-field";
+import { MaskedInput } from "@/components/ui/masked-inputs";
 import { createClient } from "@/lib/supabase/client";
-import { maskPhoneBR } from "@/lib/utils";
+import { friendlyError, toast } from "@/lib/toast";
+import { isValidPhoneBR } from "@/lib/masks";
 
 const schema = z.object({
-  name: z.string().min(1, "Informe o nome"),
+  name: z.string().trim().min(1, "Informe o nome"),
   email: z.string().email("E-mail inválido").optional().or(z.literal("")),
-  phone: z.string().optional(),
+  phone: z
+    .string()
+    .optional()
+    .refine((v) => !v || isValidPhoneBR(v), "Telefone incompleto — use DDD + número"),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -43,26 +48,22 @@ export function NewContactDialog({
   const [internalOpen, setInternalOpen] = useState(false);
   const open = openProp ?? internalOpen;
   const setOpen = onOpenChange ?? setInternalOpen;
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const supabase = createClient();
 
   const {
     register,
     handleSubmit,
-    watch,
-    setValue,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
   async function onSubmit(values: FormValues) {
-    setSubmitError(null);
+    const supabase = createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
     if (!user) {
-      setSubmitError("Sessão expirada, faça login novamente.");
+      toast.error("Sua sessão expirou", { description: "Entre novamente para continuar." });
       return;
     }
 
@@ -79,10 +80,11 @@ export function NewContactDialog({
       .single();
 
     if (error) {
-      setSubmitError("Não foi possível criar o contato. Tente novamente.");
+      toast.error("Não foi possível criar o contato", { description: friendlyError(error) });
       return;
     }
 
+    toast.success("Contato criado", { description: values.name });
     reset();
     setOpen(false);
     onCreated?.(data ?? undefined);
@@ -97,6 +99,7 @@ export function NewContactDialog({
           <DialogDescription>Cadastra uma nova pessoa.</DialogDescription>
         </DialogHeader>
         <form
+          noValidate
           onSubmit={(e) => {
             // O DialogContent do Radix é portalizado para fora do form pai no
             // DOM, mas o React ainda propaga o evento pela árvore de
@@ -107,36 +110,21 @@ export function NewContactDialog({
           }}
           className="flex flex-col gap-4"
         >
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="name">Nome</Label>
-            <Input id="name" {...register("name")} autoFocus />
-            {errors.name && (
-              <p className="text-xs text-destructive">{errors.name.message}</p>
-            )}
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="email">E-mail</Label>
-            <Input id="email" type="email" {...register("email")} />
-            {errors.email && (
-              <p className="text-xs text-destructive">{errors.email.message}</p>
-            )}
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="phone">Telefone</Label>
-            <Input
-              id="phone"
-              {...register("phone")}
-              value={watch("phone") ?? ""}
-              onChange={(e) => setValue("phone", maskPhoneBR(e.target.value))}
-              placeholder="(00) 00000-0000"
-            />
-          </div>
-          {submitError && (
-            <p className="text-sm text-destructive">{submitError}</p>
-          )}
+          <FormField label="Nome" htmlFor="contact-name" required error={errors.name?.message}>
+            <Input id="contact-name" autoFocus placeholder="Nome completo" {...register("name")} />
+          </FormField>
+          <FormField label="E-mail" htmlFor="contact-email" error={errors.email?.message}>
+            <Input id="contact-email" type="email" placeholder="nome@empresa.com.br" {...register("email")} />
+          </FormField>
+          <FormField label="Telefone" htmlFor="contact-phone" error={errors.phone?.message}>
+            <MaskedInput id="contact-phone" mask="phone" {...register("phone")} />
+          </FormField>
           <DialogFooter>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Criando..." : "Criar contato"}
+            <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" loading={isSubmitting}>
+              Criar contato
             </Button>
           </DialogFooter>
         </form>

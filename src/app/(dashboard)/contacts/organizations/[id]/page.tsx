@@ -1,18 +1,22 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { Card, CardContent } from "@/components/ui/card";
+import { KanbanSquare, Users } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrencyBRL } from "@/lib/utils";
 import { OrganizationDetailForm } from "./organization-detail-form";
 import { EntityFilesTab } from "@/components/entity-files-tab";
 import { PageHeader } from "@/components/ui/page-header";
 
-const DEAL_STATUS_LABEL: Record<string, string> = {
-  open: "Aberto",
-  won: "Ganho",
-  lost: "Perdido",
-};
+import { RelatedList } from "@/components/related-list";
+import { DEAL_STATUS_BADGE, DEAL_STATUS_LABEL } from "@/lib/filters/deals";
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const supabase = await createClient();
+  const { data } = await supabase.from("organizations").select("name").eq("id", id).maybeSingle();
+  return { title: data?.name ?? "Organização" };
+}
 
 export default async function OrganizationDetailPage({
   params,
@@ -59,85 +63,65 @@ export default async function OrganizationDetailPage({
       .order("created_at", { ascending: false }),
   ]);
 
+  const contacts = contactsRes.data ?? [];
+  const deals = dealsRes.data ?? [];
+
   return (
-    <div className="flex flex-col gap-4">
+    <div className="mx-auto flex w-full max-w-detail flex-col gap-5">
       <PageHeader
         title={organization.name}
+        description={[organization.sector, organization.city && `${organization.city}${organization.state ? `/${organization.state}` : ""}`]
+          .filter(Boolean)
+          .join(" · ") || undefined}
         breadcrumbs={[
           { label: "Organizações", href: "/contacts/organizations" },
           { label: organization.name },
         ]}
       />
 
-      <OrganizationDetailForm organization={organization as any} canDelete={canDelete} />
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)]">
+        <OrganizationDetailForm organization={organization as never} canDelete={canDelete} />
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Card>
-          <CardContent className="flex flex-col gap-2 p-4">
-            <h2 className="text-sm font-semibold text-foreground">Contatos</h2>
-            {(contactsRes.data ?? []).map((c) => (
-              <Link
-                key={c.id}
-                href={`/contacts/people/${c.id}`}
-                className="flex flex-col rounded-md border border-border p-2 text-sm hover:border-primary"
-              >
-                <span className="font-medium">{c.name}</span>
-                <span className="text-xs text-muted-foreground">
-                  {c.email ?? c.phone ?? "—"}
-                </span>
-              </Link>
-            ))}
-            {(contactsRes.data ?? []).length === 0 && (
-              <p className="text-sm text-muted-foreground">Nenhum contato vinculado.</p>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="flex flex-col gap-2 p-4">
-            <h2 className="text-sm font-semibold text-foreground">Negócios</h2>
-            {(dealsRes.data ?? []).map((d) => (
-              <Link
-                key={d.id}
-                href={`/deals/${d.id}`}
-                className="flex items-center justify-between rounded-md border border-border p-2 text-sm hover:border-primary"
-              >
-                <span className="font-medium">{d.title}</span>
-                <span className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">
-                    {formatCurrencyBRL(d.value)}
-                  </span>
-                  <Badge
-                    variant={
-                      d.status === "won"
-                        ? "success"
-                        : d.status === "lost"
-                          ? "destructive"
-                          : "outline"
-                    }
-                  >
-                    {DEAL_STATUS_LABEL[d.status] ?? d.status}
-                  </Badge>
-                </span>
-              </Link>
-            ))}
-            {(dealsRes.data ?? []).length === 0 && (
-              <p className="text-sm text-muted-foreground">Nenhum negócio vinculado.</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardContent className="flex flex-col gap-2 p-4">
-          <h2 className="text-sm font-semibold text-foreground">Documentos</h2>
-          <EntityFilesTab
-            entityType="organization"
-            entityId={id}
-            attachments={attachmentsRes.data ?? []}
+        <div className="flex flex-col gap-5">
+          <RelatedList
+            title="Pessoas"
+            icon={Users}
+            emptyText="Nenhuma pessoa vinculada"
+            items={contacts.map((c) => ({
+              id: c.id,
+              href: `/contacts/people/${c.id}`,
+              title: c.name,
+              subtitle: c.email ?? c.phone,
+            }))}
           />
-        </CardContent>
-      </Card>
+          <RelatedList
+            title="Negócios"
+            icon={KanbanSquare}
+            emptyText="Nenhum negócio vinculado"
+            items={deals.map((d) => ({
+              id: d.id,
+              href: `/deals/${d.id}`,
+              title: d.title,
+              trailing: (
+                <>
+                  <span className="numeric text-caption text-muted-foreground">{formatCurrencyBRL(d.value)}</span>
+                  <Badge variant={DEAL_STATUS_BADGE[d.status as keyof typeof DEAL_STATUS_BADGE] ?? "neutral"}>
+                    {DEAL_STATUS_LABEL[d.status as keyof typeof DEAL_STATUS_LABEL] ?? d.status}
+                  </Badge>
+                </>
+              ),
+            }))}
+          />
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle>Documentos</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <EntityFilesTab entityType="organization" entityId={id} attachments={attachmentsRes.data ?? []} />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }
