@@ -1,20 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
-import { fetchAllRows } from "@/lib/supabase/fetch-all";
-import { PeopleToolbar } from "./people-toolbar";
-import { PeopleList, type PersonRow } from "./people-list";
+import { canReassignOwner, getCurrentUser, loadOwners, loadPersonRows } from "@/lib/data/lists";
 import { PageHeader } from "@/components/ui/page-header";
+import { PeopleToolbar } from "./people-toolbar";
+import { PeopleList } from "./people-list";
 
 export const metadata = { title: "Pessoas" };
 
 export default async function PeoplePage() {
   const supabase = await createClient();
-  const contacts = await fetchAllRows<PersonRow>((from, to) =>
-    supabase
-      .from("contacts")
-      .select("id, name, email, phone, whatsapp, organizations ( id, name )")
-      .order("created_at", { ascending: false })
-      .range(from, to) as unknown as PromiseLike<{ data: PersonRow[] | null; error: unknown }>,
-  );
+  const [owners, me] = await Promise.all([loadOwners(supabase), getCurrentUser()]);
+  const contacts = await loadPersonRows(supabase, owners);
 
   return (
     <div className="flex flex-col gap-4">
@@ -24,7 +19,7 @@ export default async function PeoplePage() {
         actions={<PeopleToolbar />}
       />
 
-      <PeopleList contacts={contacts ?? []} />
+      <PeopleList contacts={contacts} owners={owners} canReassign={canReassignOwner(me?.role)} />
     </div>
   );
 }

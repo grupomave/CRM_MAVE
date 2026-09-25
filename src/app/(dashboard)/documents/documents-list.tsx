@@ -2,19 +2,28 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Download } from "lucide-react";
+import { CalendarClock, Download, FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  FilterSelect,
+  FilterToggle,
+  ListToolbar,
+  SearchInput,
+} from "@/components/list/list-toolbar";
+import { matchesSearch } from "@/lib/filters/params";
+import { formatDate } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { DOCUMENT_CATEGORIES } from "@/components/entity-files-tab";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 export interface DocumentRow {
   id: string;
@@ -37,17 +46,16 @@ const ENTITY_LABEL: Record<string, string> = {
 
 export function DocumentsList({ documents }: { documents: DocumentRow[] }) {
   const [search, setSearch] = useState("");
-  const [entityType, setEntityType] = useState("all");
-  const [category, setCategory] = useState("all");
+  const [entityType, setEntityType] = useState("");
+  const [category, setCategory] = useState("");
   const [onlyExpiring, setOnlyExpiring] = useState(false);
   const supabase = createClient();
 
   const now = new Date();
-  const term = search.trim().toLowerCase();
   const filtered = documents.filter((d) => {
-    if (term && !`${d.file_name} ${d.entity_name}`.toLowerCase().includes(term)) return false;
-    if (entityType !== "all" && d.entity_type !== entityType) return false;
-    if (category !== "all" && d.category !== category) return false;
+    if (!matchesSearch(search, d.file_name, d.entity_name)) return false;
+    if (entityType && d.entity_type !== entityType) return false;
+    if (category && d.category !== category) return false;
     if (onlyExpiring) {
       if (!d.expires_at) return false;
       const daysLeft = (new Date(d.expires_at).getTime() - now.getTime()) / 86400000;
@@ -68,57 +76,54 @@ export function DocumentsList({ documents }: { documents: DocumentRow[] }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <Input
-          placeholder="Buscar por nome do arquivo ou registro..."
-          className="w-64"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <Select value={entityType} onValueChange={setEntityType}>
-          <SelectTrigger className="w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os tipos</SelectItem>
-            <SelectItem value="deal">Negócios</SelectItem>
-            <SelectItem value="contact">Contatos</SelectItem>
-            <SelectItem value="organization">Organizações</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={category} onValueChange={setCategory}>
-          <SelectTrigger className="w-44">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas as categorias</SelectItem>
-            {DOCUMENT_CATEGORIES.map((c) => (
-              <SelectItem key={c} value={c}>
-                {c}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <button type="button" onClick={() => setOnlyExpiring((v) => !v)}>
-          <Badge variant={onlyExpiring ? "warning" : "outline"} className="cursor-pointer">
-            Vencendo em 30 dias
-          </Badge>
-        </button>
-      </div>
+      <ListToolbar
+        search={
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Buscar por arquivo ou registro..."
+          />
+        }
+        filters={
+          <>
+            <FilterSelect
+              label="Tipo de registro"
+              value={entityType}
+              onChange={setEntityType}
+              allLabel="Todos os tipos"
+              options={[
+                { value: "deal", label: "Negócios" },
+                { value: "contact", label: "Contatos" },
+                { value: "organization", label: "Organizações" },
+              ]}
+            />
+            <FilterSelect
+              label="Categoria"
+              value={category}
+              onChange={setCategory}
+              allLabel="Todas as categorias"
+              options={DOCUMENT_CATEGORIES.map((c) => ({ value: c, label: c }))}
+            />
+            <FilterToggle active={onlyExpiring} onClick={() => setOnlyExpiring((v) => !v)}>
+              <CalendarClock />
+              Vencendo em 30 dias
+            </FilterToggle>
+          </>
+        }
+      />
 
-      <div className="overflow-x-auto rounded-lg border border-border">
-        <table className="w-full text-sm">
-          <thead className="bg-muted text-left text-xs uppercase text-muted-foreground">
-            <tr>
-              <th className="p-3">Arquivo</th>
-              <th className="p-3">Categoria</th>
-              <th className="p-3">Vinculado a</th>
-              <th className="p-3">Validade</th>
-              <th className="p-3">Enviado em</th>
-              <th className="p-3"></th>
-            </tr>
-          </thead>
-          <tbody>
+      <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Arquivo</TableHead>
+              <TableHead>Categoria</TableHead>
+              <TableHead>Vinculado a</TableHead>
+              <TableHead>Validade</TableHead>
+              <TableHead>Enviado em</TableHead>
+              <TableHead />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {filtered.map((d) => {
               const expired = d.expires_at && new Date(d.expires_at) < now;
               const expiringSoon =
@@ -126,48 +131,56 @@ export function DocumentsList({ documents }: { documents: DocumentRow[] }) {
                 !expired &&
                 new Date(d.expires_at).getTime() - now.getTime() < 30 * 86400000;
               return (
-                <tr key={d.id} className="border-t border-border">
-                  <td className="p-3 font-medium">{d.file_name}</td>
-                  <td className="p-3 text-muted-foreground">{d.category ?? "—"}</td>
-                  <td className="p-3">
+                <TableRow key={d.id}>
+                  <TableCell className="font-medium">{d.file_name}</TableCell>
+                  <TableCell className="text-muted-foreground">{d.category ?? "—"}</TableCell>
+                  <TableCell>
                     <Link href={d.entity_href} className="text-primary hover:underline">
                       {ENTITY_LABEL[d.entity_type] ?? d.entity_type}: {d.entity_name}
                     </Link>
-                  </td>
-                  <td className="p-3">
+                  </TableCell>
+                  <TableCell>
                     {d.expires_at ? (
-                      <Badge variant={expired ? "destructive" : expiringSoon ? "warning" : "outline"}>
-                        {new Date(d.expires_at).toLocaleDateString("pt-BR")}
+                      <Badge variant={expired ? "destructive" : expiringSoon ? "warning" : "neutral"}>
+                        {formatDate(`${d.expires_at}T12:00:00`)}
                       </Badge>
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}
-                  </td>
-                  <td className="p-3 text-muted-foreground">
-                    {new Date(d.created_at).toLocaleDateString("pt-BR")}
-                  </td>
-                  <td className="p-3">
+                  </TableCell>
+                  <TableCell className="numeric text-muted-foreground">
+                    {formatDate(d.created_at)}
+                  </TableCell>
+                  <TableCell>
                     <Button
                       variant="ghost"
-                      size="icon"
+                      size="icon-sm"
+                      aria-label={`Baixar ${d.file_name}`}
                       onClick={() => download(d.storage_path, d.file_name)}
                     >
-                      <Download className="size-4" />
+                      <Download />
                     </Button>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               );
             })}
             {filtered.length === 0 && (
-              <tr>
-                <td colSpan={6} className="p-6 text-center text-muted-foreground">
-                  Nenhum documento encontrado.
-                </td>
-              </tr>
+              <TableRow>
+                <TableCell colSpan={6}>
+                  <EmptyState
+                    icon={FileText}
+                    title={documents.length === 0 ? "Nenhum documento anexado ainda" : "Nenhum documento encontrado"}
+                    description={
+                      documents.length === 0
+                        ? "Arquivos anexados em negócios, pessoas e organizações aparecem aqui."
+                        : "Ajuste a busca ou os filtros para ver mais resultados."
+                    }
+                  />
+                </TableCell>
+              </TableRow>
             )}
-          </tbody>
-        </table>
-      </div>
+          </TableBody>
+        </Table>
     </div>
   );
 }

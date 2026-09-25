@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import {
   DndContext,
   DragOverlay,
@@ -14,8 +13,12 @@ import {
 } from "@dnd-kit/core";
 import { ChevronLeft, ChevronRight, KanbanSquare, List, Plus, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
+import { useListParams } from "@/components/list/use-list-params";
+import { BulkActionBar, useRowSelection } from "@/components/list/bulk-action-bar";
+import { BulkOwnerButton } from "@/components/list/bulk-owner-dialog";
+import { applyDealFilters, parseDealFilters } from "@/lib/filters/deals";
+import { getEnumParam, getPagination } from "@/lib/filters/params";
 import { NewDealDialog } from "@/components/forms/new-deal-dialog";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrencyBRL, cn } from "@/lib/utils";
@@ -23,9 +26,12 @@ import { DealCardOverlay } from "./deal-card";
 import { PipelineColumn } from "./pipeline-column";
 import { PipelineSwitcher } from "./pipeline-switcher";
 import {
+  DEAL_FILTER_KEYS,
+  FilterChips,
   PipelineFilters,
-  type PipelineFiltersState,
+  dealFilterChips,
 } from "./pipeline-filters";
+import { DealsTable } from "./deals-table";
 import type {
   OwnerOption,
   PipelineDeal,
@@ -33,26 +39,8 @@ import type {
   PipelineStage,
 } from "./types";
 
-type ViewMode = "kanban" | "list" | "forecast";
-
-const STATUS_LABEL: Record<PipelineDeal["status"], string> = {
-  open: "Aberto",
-  won: "Ganho",
-  lost: "Perdido",
-};
-
-const DEFAULT_FILTERS: PipelineFiltersState = {
-  search: "",
-  ownerId: "all",
-  source: "all",
-  status: "open",
-  stageId: "all",
-  minValue: "",
-  maxValue: "",
-  onlyOverdue: false,
-  onlyNoUpcoming: false,
-  onlyStagnant: false,
-};
+const VIEW_MODES = ["kanban", "list", "forecast"] as const;
+type ViewMode = (typeof VIEW_MODES)[number];
 
 export function PipelineBoard({
   pipelines,
@@ -60,16 +48,21 @@ export function PipelineBoard({
   stages,
   initialDeals,
   owners,
+  canReassign = false,
 }: {
   pipelines: PipelineOption[];
   selectedPipelineId: string | null;
   stages: PipelineStage[];
   initialDeals: PipelineDeal[];
   owners: OwnerOption[];
+  canReassign?: boolean;
 }) {
   const [deals, setDeals] = useState(initialDeals);
-  const [filters, setFilters] = useState<PipelineFiltersState>(DEFAULT_FILTERS);
-  const [view, setView] = useState<ViewMode>("kanban");
+  const { params, update, clear } = useListParams();
+  const filters = useMemo(() => parseDealFilters(params), [params]);
+  const { page, pageSize } = getPagination(params);
+  const view: ViewMode = getEnumParam(params, "view", VIEW_MODES, "kanban");
+  const setView = (next: ViewMode) => update({ view: next === "kanban" ? null : next, page: null });
   const [activeDealId, setActiveDealId] = useState<string | null>(null);
   const supabase = createClient();
   const boardScrollRef = useRef<HTMLDivElement>(null);
@@ -133,25 +126,18 @@ export function PipelineBoard({
     [deals],
   );
 
-  const filteredDeals = useMemo(() => {
-    const search = filters.search.trim().toLowerCase();
-    return deals.filter((d) => {
-      if (search) {
-        const haystack = `${d.title} ${d.organization_name ?? ""} ${d.contact_name ?? ""} ${d.owner_name}`.toLowerCase();
-        if (!haystack.includes(search)) return false;
-      }
-      if (filters.status !== "all" && d.status !== filters.status) return false;
-      if (filters.stageId !== "all" && d.stage_id !== filters.stageId) return false;
-      if (filters.ownerId !== "all" && d.owner_id !== filters.ownerId) return false;
-      if (filters.source !== "all" && d.source !== filters.source) return false;
-      if (filters.minValue && d.value < Number(filters.minValue)) return false;
-      if (filters.maxValue && d.value > Number(filters.maxValue)) return false;
-      if (filters.onlyOverdue && !d.overdue_days) return false;
-      if (filters.onlyNoUpcoming && !d.no_upcoming_activity) return false;
-      if (filters.onlyStagnant && !d.is_stagnant) return false;
-      return true;
-    });
-  }, [deals, filters]);
+  const stageOrder = useMemo(
+    () => new Map(stages.map((s, i) => [s.id, i])),
+    [stages],
+  );
+
+  const filteredDeals = useMemo(
+    () => applyDealFilters(deals, filters, stageOrder),
+    [deals, filters, stageOrder],
+  );
+  const filteredIds = useMemo(() => filteredDeals.map((d) => d.id), [filteredDeals]);
+  const selection = useRowSelection(filteredIds);
+  const chips = dealFilterChips(filters, update, { stages, owners });
 
   // O Kanban só faz sentido para negócios abertos — ganhos/perdidos não têm
   // "próxima coluna" (docx §3: fechados só aparecem na Lista).
@@ -251,8 +237,10 @@ export function PipelineBoard({
         stages={stages}
         sources={sources}
         filters={filters}
-        onChange={setFilters}
+        update={update}
       />
+
+      <FilterChips chips={chips} onClearAll={() => clear(DEAL_FILTER_KEYS)} />
 
       {stages.length === 0 && (
         <p className="text-sm text-muted-foreground">
@@ -310,59 +298,22 @@ export function PipelineBoard({
       )}
 
       {view === "list" && (
-        <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="w-full text-sm">
-            <thead className="bg-muted text-left text-xs uppercase text-muted-foreground">
-              <tr>
-                <th className="p-3">Negócio</th>
-                <th className="p-3">Organização</th>
-                <th className="p-3">Contato</th>
-                <th className="p-3">Estágio</th>
-                <th className="p-3">Status</th>
-                <th className="p-3">Valor</th>
-                <th className="p-3">Responsável</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredDeals.map((d) => (
-                <tr key={d.id} className="border-t border-border">
-                  <td className="p-3 font-medium">
-                    <Link href={`/deals/${d.id}`} className="hover:underline">
-                      {d.title}
-                    </Link>
-                  </td>
-                  <td className="p-3 text-muted-foreground">{d.organization_name ?? "—"}</td>
-                  <td className="p-3 text-muted-foreground">{d.contact_name ?? "—"}</td>
-                  <td className="p-3 text-muted-foreground">
-                    {stages.find((s) => s.id === d.stage_id)?.name}
-                  </td>
-                  <td className="p-3">
-                    <Badge
-                      variant={
-                        d.status === "won"
-                          ? "success"
-                          : d.status === "lost"
-                            ? "destructive"
-                            : "outline"
-                      }
-                    >
-                      {STATUS_LABEL[d.status]}
-                    </Badge>
-                  </td>
-                  <td className="p-3">{formatCurrencyBRL(d.value)}</td>
-                  <td className="p-3 text-muted-foreground">{d.owner_name}</td>
-                </tr>
-              ))}
-              {filteredDeals.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="p-6 text-center text-muted-foreground">
-                    Nenhum negócio encontrado com esses filtros.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DealsTable
+          deals={filteredDeals}
+          stages={stages}
+          filters={filters}
+          page={page}
+          pageSize={pageSize}
+          selection={selection}
+          update={update}
+          emptyAction={
+            chips.length > 0 && (
+              <Button variant="secondary" size="sm" onClick={() => clear(DEAL_FILTER_KEYS)}>
+                Limpar filtros
+              </Button>
+            )
+          }
+        />
       )}
 
       {view === "forecast" && (
@@ -381,6 +332,23 @@ export function PipelineBoard({
             ),
           )}
         </div>
+      )}
+      {view === "list" && (
+        <BulkActionBar
+          count={selection.selected.size}
+          totalFiltered={filteredDeals.length}
+          onSelectAllFiltered={() => selection.setMany(filteredIds, true)}
+          onClear={selection.clear}
+        >
+          {canReassign && (
+            <BulkOwnerButton
+              table="deals"
+              ids={[...selection.selected]}
+              owners={owners}
+              onDone={selection.clear}
+            />
+          )}
+        </BulkActionBar>
       )}
     </div>
   );

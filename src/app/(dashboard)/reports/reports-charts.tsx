@@ -14,6 +14,14 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrencyBRL } from "@/lib/utils";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const compactBRL = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -216,37 +224,37 @@ export function OwnerRankingTable({ rows }: { rows: OwnerRankingRow[] }) {
         <CardTitle>Ranking de vendedores</CardTitle>
       </CardHeader>
       <CardContent className="overflow-x-auto p-0">
-        <table className="w-full text-sm">
-          <thead className="bg-muted text-left text-xs uppercase text-muted-foreground">
-            <tr>
-              <th className="p-3">Vendedor</th>
-              <th className="p-3">Valor ganho</th>
-              <th className="p-3">Nº ganhos</th>
-              <th className="p-3">Nº perdidos</th>
-              <th className="p-3">Ticket médio</th>
-              <th className="p-3">Taxa de conversão</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table containerClassName="rounded-none border-0 shadow-none">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Vendedor</TableHead>
+              <TableHead align="right">Valor ganho</TableHead>
+              <TableHead align="right">Nº ganhos</TableHead>
+              <TableHead align="right">Nº perdidos</TableHead>
+              <TableHead align="right">Ticket médio</TableHead>
+              <TableHead align="right">Taxa de conversão</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {rows.map((r) => (
-              <tr key={r.owner} className="border-t border-border">
-                <td className="p-3 font-medium">{r.owner}</td>
-                <td className="p-3">{formatCurrencyBRL(r.wonValue)}</td>
-                <td className="p-3">{r.wonCount}</td>
-                <td className="p-3">{r.lostCount}</td>
-                <td className="p-3">{formatCurrencyBRL(r.avgTicket)}</td>
-                <td className="p-3">{(r.conversionRate * 100).toFixed(0)}%</td>
-              </tr>
+              <TableRow key={r.owner}>
+                <TableCell className="font-medium">{r.owner}</TableCell>
+                <TableCell numeric>{formatCurrencyBRL(r.wonValue)}</TableCell>
+                <TableCell numeric>{r.wonCount}</TableCell>
+                <TableCell numeric>{r.lostCount}</TableCell>
+                <TableCell numeric>{formatCurrencyBRL(r.avgTicket)}</TableCell>
+                <TableCell numeric>{(r.conversionRate * 100).toFixed(0)}%</TableCell>
+              </TableRow>
             ))}
             {rows.length === 0 && (
-              <tr>
-                <td colSpan={6} className="p-6 text-center text-muted-foreground">
+              <TableRow>
+                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                   Nenhum negócio ganho ou perdido no período.
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </CardContent>
     </Card>
   );
@@ -269,41 +277,41 @@ export function ActivityByOwnerTable({ rows }: { rows: ActivityByOwnerRow[] }) {
         <CardTitle>Atividades por vendedor no período</CardTitle>
       </CardHeader>
       <CardContent className="overflow-x-auto p-0">
-        <table className="w-full text-sm">
-          <thead className="bg-muted text-left text-xs uppercase text-muted-foreground">
-            <tr>
-              <th className="p-3">Vendedor</th>
-              <th className="p-3">Tarefas</th>
-              <th className="p-3">Ligações</th>
-              <th className="p-3">Reuniões</th>
-              <th className="p-3">E-mails</th>
-              <th className="p-3">Concluídas</th>
-              <th className="p-3">Total</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table containerClassName="rounded-none border-0 shadow-none">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Vendedor</TableHead>
+              <TableHead align="right">Tarefas</TableHead>
+              <TableHead align="right">Ligações</TableHead>
+              <TableHead align="right">Reuniões</TableHead>
+              <TableHead align="right">E-mails</TableHead>
+              <TableHead align="right">Concluídas</TableHead>
+              <TableHead align="right">Total</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {rows.map((r) => (
-              <tr key={r.owner} className="border-t border-border">
-                <td className="p-3 font-medium">{r.owner}</td>
-                <td className="p-3">{r.task}</td>
-                <td className="p-3">{r.call}</td>
-                <td className="p-3">{r.meeting}</td>
-                <td className="p-3">{r.email}</td>
-                <td className="p-3">
+              <TableRow key={r.owner}>
+                <TableCell className="font-medium">{r.owner}</TableCell>
+                <TableCell numeric>{r.task}</TableCell>
+                <TableCell numeric>{r.call}</TableCell>
+                <TableCell numeric>{r.meeting}</TableCell>
+                <TableCell numeric>{r.email}</TableCell>
+                <TableCell numeric>
                   {r.done}/{r.total}
-                </td>
-                <td className="p-3 font-medium">{r.total}</td>
-              </tr>
+                </TableCell>
+                <TableCell numeric className="font-medium">{r.total}</TableCell>
+              </TableRow>
             ))}
             {rows.length === 0 && (
-              <tr>
-                <td colSpan={7} className="p-6 text-center text-muted-foreground">
+              <TableRow>
+                <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                   Nenhuma atividade com data no período.
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </CardContent>
     </Card>
   );

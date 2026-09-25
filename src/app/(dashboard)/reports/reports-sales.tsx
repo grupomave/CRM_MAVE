@@ -11,6 +11,14 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrencyBRL } from "@/lib/utils";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const SUCCESS = "var(--color-success)";
 
@@ -25,29 +33,29 @@ export function CustomerSalesTable({
         <CardTitle>Vendas por cliente (top 10 no período)</CardTitle>
       </CardHeader>
       <CardContent className="overflow-x-auto p-0">
-        <table className="w-full text-sm">
-          <thead className="bg-muted text-left text-xs uppercase text-muted-foreground">
-            <tr>
-              <th className="p-3">Cliente</th>
-              <th className="p-3">Valor ganho</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table containerClassName="rounded-none border-0 shadow-none">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Cliente</TableHead>
+              <TableHead align="right">Valor ganho</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {rows.map((r) => (
-              <tr key={r.customer} className="border-t border-border">
-                <td className="p-3 font-medium">{r.customer}</td>
-                <td className="p-3">{formatCurrencyBRL(r.value)}</td>
-              </tr>
+              <TableRow key={r.customer}>
+                <TableCell className="font-medium">{r.customer}</TableCell>
+                <TableCell numeric>{formatCurrencyBRL(r.value)}</TableCell>
+              </TableRow>
             ))}
             {rows.length === 0 && (
-              <tr>
-                <td colSpan={2} className="p-6 text-center text-muted-foreground">
+              <TableRow>
+                <TableCell colSpan={2} className="h-24 text-center text-muted-foreground">
                   Nenhuma venda no período.
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </CardContent>
     </Card>
   );

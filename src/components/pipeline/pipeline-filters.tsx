@@ -1,164 +1,141 @@
 "use client";
 
+import { AlertTriangle, CalendarX, Snowflake } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { cn } from "@/lib/utils";
+  FilterSelect,
+  FilterToggle,
+  ListToolbar,
+  SearchInput,
+} from "@/components/list/list-toolbar";
+import { FilterChips, type FilterChip } from "@/components/list/filter-chips";
+import { DEAL_STATUS_LABEL, type DealFilters } from "@/lib/filters/deals";
+import { formatCurrencyBRL } from "@/lib/utils";
 import type { OwnerOption, PipelineStage } from "./types";
 
-export interface PipelineFiltersState {
-  search: string;
-  ownerId: string;
-  source: string;
-  status: "all" | "open" | "won" | "lost";
-  stageId: string;
-  minValue: string;
-  maxValue: string;
-  onlyOverdue: boolean;
-  onlyNoUpcoming: boolean;
-  onlyStagnant: boolean;
-}
+export const DEAL_FILTER_KEYS = [
+  "q",
+  "status",
+  "stage",
+  "owner",
+  "source",
+  "min",
+  "max",
+  "overdue",
+  "noact",
+  "stagnant",
+];
 
-const STATUS_LABEL: Record<PipelineFiltersState["status"], string> = {
-  all: "Todos os status",
-  open: "Aberto",
-  won: "Ganho",
-  lost: "Perdido",
-};
+type Update = (updates: Record<string, string | number | boolean | null>) => void;
 
 export function PipelineFilters({
   owners,
   stages,
   sources,
   filters,
-  onChange,
+  update,
+  actions,
 }: {
   owners: OwnerOption[];
   stages: PipelineStage[];
   sources: string[];
-  filters: PipelineFiltersState;
-  onChange: (next: PipelineFiltersState) => void;
+  filters: DealFilters;
+  update: Update;
+  actions?: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <Input
-          placeholder="Buscar por negócio, organização, contato..."
-          className="w-64"
-          value={filters.search}
-          onChange={(e) => onChange({ ...filters, search: e.target.value })}
-        />
+      <ListToolbar
+        search={
+          <SearchInput
+            value={filters.q}
+            onChange={(q) => update({ q })}
+            placeholder="Buscar negócio, organização, contato..."
+          />
+        }
+        filters={
+          <>
+            <FilterSelect
+              label="Status"
+              value={filters.status === "open" ? "" : filters.status}
+              onChange={(status) => update({ status: status || null })}
+              allLabel="Em aberto"
+              className="sm:w-36"
+              options={[
+                { value: "all", label: "Todos os status" },
+                { value: "won", label: DEAL_STATUS_LABEL.won },
+                { value: "lost", label: DEAL_STATUS_LABEL.lost },
+              ]}
+            />
+            <FilterSelect
+              label="Etapa"
+              value={filters.stage}
+              onChange={(stage) => update({ stage })}
+              allLabel="Todas as etapas"
+              options={stages.map((s) => ({ value: s.id, label: s.name }))}
+            />
+            {owners.length > 1 && (
+              <FilterSelect
+                label="Responsável"
+                value={filters.owner}
+                onChange={(owner) => update({ owner })}
+                allLabel="Todos os responsáveis"
+                options={owners.map((o) => ({ value: o.id, label: o.full_name }))}
+              />
+            )}
+            {sources.length > 0 && (
+              <FilterSelect
+                label="Origem"
+                value={filters.source}
+                onChange={(source) => update({ source })}
+                allLabel="Todas as origens"
+                options={sources.map((s) => ({ value: s, label: s }))}
+              />
+            )}
+            <div className="flex items-center gap-1.5">
+              <Input
+                type="number"
+                inputMode="decimal"
+                min={0}
+                placeholder="Valor mín."
+                aria-label="Valor mínimo"
+                className="w-full sm:w-28"
+                defaultValue={filters.min ?? ""}
+                key={`min-${filters.min ?? ""}`}
+                onBlur={(e) => update({ min: e.target.value || null })}
+                onKeyDown={(e) => e.key === "Enter" && update({ min: e.currentTarget.value || null })}
+              />
+              <span className="text-caption text-muted-foreground">até</span>
+              <Input
+                type="number"
+                inputMode="decimal"
+                min={0}
+                placeholder="Valor máx."
+                aria-label="Valor máximo"
+                className="w-full sm:w-28"
+                defaultValue={filters.max ?? ""}
+                key={`max-${filters.max ?? ""}`}
+                onBlur={(e) => update({ max: e.target.value || null })}
+                onKeyDown={(e) => e.key === "Enter" && update({ max: e.currentTarget.value || null })}
+              />
+            </div>
+          </>
+        }
+        actions={actions}
+      />
 
-        <Select
-          value={filters.status}
-          onValueChange={(v) => onChange({ ...filters, status: v as PipelineFiltersState["status"] })}
-        >
-          <SelectTrigger className="w-36">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {Object.entries(STATUS_LABEL).map(([value, label]) => (
-              <SelectItem key={value} value={value}>
-                {label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={filters.stageId}
-          onValueChange={(v) => onChange({ ...filters, stageId: v })}
-        >
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="Etapa" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas as etapas</SelectItem>
-            {stages.map((s) => (
-              <SelectItem key={s.id} value={s.id}>
-                {s.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={filters.ownerId}
-          onValueChange={(v) => onChange({ ...filters, ownerId: v })}
-        >
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="Responsável" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os responsáveis</SelectItem>
-            {owners.map((o) => (
-              <SelectItem key={o.id} value={o.id}>
-                {o.full_name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={filters.source}
-          onValueChange={(v) => onChange({ ...filters, source: v })}
-        >
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="Origem" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas as origens</SelectItem>
-            {sources.map((s) => (
-              <SelectItem key={s} value={s}>
-                {s}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Input
-          type="number"
-          placeholder="Valor mín."
-          className="w-32"
-          value={filters.minValue}
-          onChange={(e) => onChange({ ...filters, minValue: e.target.value })}
-        />
-        <Input
-          type="number"
-          placeholder="Valor máx."
-          className="w-32"
-          value={filters.maxValue}
-          onChange={(e) => onChange({ ...filters, maxValue: e.target.value })}
-        />
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs text-muted-foreground">Alertas:</span>
-        <FilterToggle
-          active={filters.onlyOverdue}
-          onClick={() => onChange({ ...filters, onlyOverdue: !filters.onlyOverdue })}
-          variant="destructive"
-        >
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="mr-1 text-caption text-muted-foreground">Alertas:</span>
+        <FilterToggle active={filters.overdue} onClick={() => update({ overdue: !filters.overdue })}>
+          <CalendarX />
           Atividade atrasada
         </FilterToggle>
-        <FilterToggle
-          active={filters.onlyNoUpcoming}
-          onClick={() => onChange({ ...filters, onlyNoUpcoming: !filters.onlyNoUpcoming })}
-          variant="warning"
-        >
+        <FilterToggle active={filters.noActivity} onClick={() => update({ noact: !filters.noActivity })}>
+          <AlertTriangle />
           Sem próxima atividade
         </FilterToggle>
-        <FilterToggle
-          active={filters.onlyStagnant}
-          onClick={() => onChange({ ...filters, onlyStagnant: !filters.onlyStagnant })}
-          variant="stagnant"
-        >
+        <FilterToggle active={filters.stagnant} onClick={() => update({ stagnant: !filters.stagnant })}>
+          <Snowflake />
           Estagnado
         </FilterToggle>
       </div>
@@ -166,25 +143,44 @@ export function PipelineFilters({
   );
 }
 
-function FilterToggle({
-  active,
-  onClick,
-  variant,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  variant: "destructive" | "warning" | "stagnant";
-  children: React.ReactNode;
-}) {
-  return (
-    <button type="button" onClick={onClick}>
-      <Badge
-        variant={active ? variant : "outline"}
-        className={cn("cursor-pointer select-none", !active && "text-muted-foreground")}
-      >
-        {children}
-      </Badge>
-    </button>
-  );
+export function dealFilterChips(
+  filters: DealFilters,
+  update: Update,
+  lookups: { stages: PipelineStage[]; owners: OwnerOption[] },
+): FilterChip[] {
+  const chips: FilterChip[] = [];
+  if (filters.q) chips.push({ key: "q", label: `Busca: “${filters.q}”`, onRemove: () => update({ q: null }) });
+  if (filters.status !== "open")
+    chips.push({
+      key: "status",
+      label: `Status: ${filters.status === "all" ? "Todos" : DEAL_STATUS_LABEL[filters.status]}`,
+      onRemove: () => update({ status: null }),
+    });
+  if (filters.stage)
+    chips.push({
+      key: "stage",
+      label: `Etapa: ${lookups.stages.find((s) => s.id === filters.stage)?.name ?? "—"}`,
+      onRemove: () => update({ stage: null }),
+    });
+  if (filters.owner)
+    chips.push({
+      key: "owner",
+      label: `Responsável: ${lookups.owners.find((o) => o.id === filters.owner)?.full_name ?? "—"}`,
+      onRemove: () => update({ owner: null }),
+    });
+  if (filters.source)
+    chips.push({ key: "source", label: `Origem: ${filters.source}`, onRemove: () => update({ source: null }) });
+  if (filters.min !== null)
+    chips.push({ key: "min", label: `Valor ≥ ${formatCurrencyBRL(filters.min)}`, onRemove: () => update({ min: null }) });
+  if (filters.max !== null)
+    chips.push({ key: "max", label: `Valor ≤ ${formatCurrencyBRL(filters.max)}`, onRemove: () => update({ max: null }) });
+  if (filters.overdue)
+    chips.push({ key: "overdue", label: "Atividade atrasada", onRemove: () => update({ overdue: null }) });
+  if (filters.noActivity)
+    chips.push({ key: "noact", label: "Sem próxima atividade", onRemove: () => update({ noact: null }) });
+  if (filters.stagnant)
+    chips.push({ key: "stagnant", label: "Estagnado", onRemove: () => update({ stagnant: null }) });
+  return chips;
 }
+
+export { FilterChips };

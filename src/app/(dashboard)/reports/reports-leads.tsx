@@ -10,6 +10,14 @@ import {
   CartesianGrid,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const PRIMARY = "var(--color-primary)";
 
@@ -58,29 +66,29 @@ export function LeadsSourceTable({
         <CardTitle>Leads por origem</CardTitle>
       </CardHeader>
       <CardContent className="overflow-x-auto p-0">
-        <table className="w-full text-sm">
-          <thead className="bg-muted text-left text-xs uppercase text-muted-foreground">
-            <tr>
-              <th className="p-3">Origem</th>
-              <th className="p-3">Leads</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table containerClassName="rounded-none border-0 shadow-none">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Origem</TableHead>
+              <TableHead align="right">Leads</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {rows.map((r) => (
-              <tr key={r.source} className="border-t border-border">
-                <td className="p-3 font-medium">{r.source}</td>
-                <td className="p-3">{r.total}</td>
-              </tr>
+              <TableRow key={r.source}>
+                <TableCell className="font-medium">{r.source}</TableCell>
+                <TableCell numeric>{r.total}</TableCell>
+              </TableRow>
             ))}
             {rows.length === 0 && (
-              <tr>
-                <td colSpan={2} className="p-6 text-center text-muted-foreground">
+              <TableRow>
+                <TableCell colSpan={2} className="h-24 text-center text-muted-foreground">
                   Nenhum lead no período.
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </CardContent>
     </Card>
   );

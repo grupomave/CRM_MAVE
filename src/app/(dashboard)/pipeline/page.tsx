@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { PipelineBoard } from "@/components/pipeline/pipeline-board";
 import { computeDealAlerts } from "@/lib/deal-alerts";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
+import { canReassignOwner, getCurrentUser } from "@/lib/data/lists";
 import type { OwnerOption, PipelineDeal, PipelineStage } from "@/components/pipeline/types";
 
 export const metadata = { title: "Negócios" };
@@ -64,7 +65,7 @@ export default async function PipelinePage({
             .range(from, to) as unknown as PromiseLike<{ data: RawDealRow[] | null; error: unknown }>,
         )
       : Promise.resolve([] as RawDealRow[]),
-    supabase.from("profiles").select("id, full_name"),
+    supabase.from("profiles").select("id, full_name").order("full_name"),
   ]);
 
   const dealIds = dealRows.map((d) => d.id);
@@ -119,6 +120,7 @@ export default async function PipelinePage({
   });
 
   const owners: OwnerOption[] = profilesRes.data ?? [];
+  const me = await getCurrentUser();
 
   return (
     <PipelineBoard
@@ -128,6 +130,7 @@ export default async function PipelinePage({
       stages={(stagesRes.data as PipelineStage[]) ?? []}
       initialDeals={deals}
       owners={owners}
+      canReassign={canReassignOwner(me?.role)}
     />
   );
 }

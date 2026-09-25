@@ -1,12 +1,22 @@
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
+import { CalendarClock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ActivitiesToolbar } from "./activities-toolbar";
 import { ActivityDoneToggle } from "./activity-done-toggle";
 import { ActivitiesCalendar } from "./activities-calendar";
 import { PageHeader } from "@/components/ui/page-header";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 export const metadata = { title: "Atividades" };
 
@@ -76,49 +86,57 @@ export default async function ActivitiesPage() {
         </TabsList>
 
         <TabsContent value="list">
-          <div className="overflow-x-auto rounded-lg border border-border">
-            <table className="w-full text-sm">
-              <thead className="bg-muted text-left text-xs uppercase text-muted-foreground">
-                <tr>
-                  <th className="p-3">Feito</th>
-                  <th className="p-3">Assunto</th>
-                  <th className="p-3">Tipo</th>
-                  <th className="p-3">Negócio</th>
-                  <th className="p-3">Data/hora</th>
-                </tr>
-              </thead>
-              <tbody>
+          <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Feito</TableHead>
+                  <TableHead>Assunto</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Negócio</TableHead>
+                  <TableHead>Data/hora</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {activities.map((a) => {
                   const overdue =
                     !a.done && a.due_date && new Date(a.due_date) < now;
                   return (
-                    <tr key={a.id} className="border-t border-border">
-                      <td className="p-3">
+                    <TableRow key={a.id}>
+                      <TableCell>
                         <ActivityDoneToggle activityId={a.id} done={a.done} />
-                      </td>
-                      <td className="p-3 font-medium">{a.subject}</td>
-                      <td className="p-3">
-                        <Badge variant="outline">{TYPE_LABEL[a.type] ?? a.type}</Badge>
-                      </td>
-                      <td className="p-3 text-muted-foreground">
+                      </TableCell>
+                      <TableCell className="font-medium">{a.subject}</TableCell>
+                      <TableCell>
+                        <Badge variant="neutral">{TYPE_LABEL[a.type] ?? a.type}</Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
                         {a.deals?.title ?? "—"}
-                      </td>
-                      <td className={overdue ? "p-3 text-destructive" : "p-3 text-muted-foreground"}>
-                        {a.due_date ? new Date(a.due_date).toLocaleString("pt-BR") : "—"}
-                      </td>
-                    </tr>
+                      </TableCell>
+                      <TableCell className={overdue ? "numeric text-destructive" : "numeric text-muted-foreground"}>
+                        {a.due_date
+                          ? new Date(a.due_date).toLocaleString("pt-BR", {
+                              dateStyle: "short",
+                              timeStyle: "short",
+                            })
+                          : "—"}
+                      </TableCell>
+                    </TableRow>
                   );
                 })}
                 {activities.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="p-6 text-center text-muted-foreground">
-                      Nenhuma atividade cadastrada.
-                    </td>
-                  </tr>
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell colSpan={5}>
+                      <EmptyState
+                        icon={CalendarClock}
+                        title="Nenhuma atividade cadastrada"
+                        description="Agende ligações, reuniões e tarefas para não perder nenhum follow-up."
+                        action={<ActivitiesToolbar />}
+                      />
+                    </TableCell>
+                  </TableRow>
                 )}
-              </tbody>
-            </table>
-          </div>
+              </TableBody>
+            </Table>
         </TabsContent>
 
         <TabsContent value="calendar">

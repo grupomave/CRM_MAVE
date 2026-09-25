@@ -1,16 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
+import { canReassignOwner, getCurrentUser, loadLeadRows, loadOwners } from "@/lib/data/lists";
+import { PageHeader } from "@/components/ui/page-header";
 import { LeadsToolbar } from "./leads-toolbar";
 import { LeadsList } from "./leads-list";
-import { PageHeader } from "@/components/ui/page-header";
 
 export const metadata = { title: "Leads" };
 
 export default async function LeadsPage() {
   const supabase = await createClient();
-  const { data: leads } = await supabase
-    .from("leads")
-    .select("id, name, contact_info, source, status, created_at")
-    .order("created_at", { ascending: false });
+  const [owners, me] = await Promise.all([loadOwners(supabase), getCurrentUser()]);
+  const leads = await loadLeadRows(supabase, owners);
 
   return (
     <div className="flex flex-col gap-4">
@@ -20,7 +19,7 @@ export default async function LeadsPage() {
         actions={<LeadsToolbar />}
       />
 
-      <LeadsList leads={leads ?? []} />
+      <LeadsList leads={leads} owners={owners} canReassign={canReassignOwner(me?.role)} />
     </div>
   );
 }
