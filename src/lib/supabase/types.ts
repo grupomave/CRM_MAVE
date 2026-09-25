@@ -311,7 +311,14 @@ export interface Database {
           id: string;
           deal_id: string;
           from_stage_id: string | null;
-          to_stage_id: string;
+          to_stage_id: string | null;
+          from_stage_name: string | null;
+          to_stage_name: string | null;
+          from_pipeline_id: string | null;
+          to_pipeline_id: string | null;
+          from_pipeline_name: string | null;
+          to_pipeline_name: string | null;
+          note: string | null;
           changed_by: string;
           changed_at: string;
         };
@@ -442,7 +449,30 @@ export interface Database {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      reorder_pipeline_stages: {
+        Args: { p_pipeline_id: string; p_stage_ids: string[] };
+        Returns: undefined;
+      };
+      move_stage_to_pipeline: {
+        Args: {
+          p_stage_id: string;
+          p_target_pipeline_id: string;
+          p_target_index: number;
+          p_mode: "with_deals" | "reassign";
+          p_reassign_stage_id?: string | null;
+        };
+        Returns: { deals: number };
+      };
+      delete_stage_with_reassign: {
+        Args: { p_stage_id: string; p_target_stage_id?: string | null };
+        Returns: { deals: number; automations_disabled: number };
+      };
+      move_deals_to_pipeline: {
+        Args: { p_deal_ids: string[]; p_target_stage_id: string };
+        Returns: { moved: number; requested: number };
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

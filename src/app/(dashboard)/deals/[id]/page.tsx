@@ -69,7 +69,7 @@ export default async function DealDetailPage({
     ownersRes,
     proposalsRes,
   ] = await Promise.all([
-    supabase.from("pipelines").select("id, name").eq("id", deal.pipeline_id).maybeSingle(),
+    supabase.from("pipelines").select("id, name").order("name"),
     supabase
       .from("pipeline_stages")
       .select("id, name, order_index, rotting_days")
@@ -93,7 +93,9 @@ export default async function DealDetailPage({
       .order("created_at", { ascending: false }),
     supabase
       .from("deal_stage_history")
-      .select("id, from_stage_id, to_stage_id, changed_at, profiles ( full_name )")
+      .select(
+        "id, from_stage_id, to_stage_id, from_stage_name, to_stage_name, from_pipeline_id, to_pipeline_id, from_pipeline_name, to_pipeline_name, note, changed_at, profiles ( full_name )",
+      )
       .eq("deal_id", id)
       .order("changed_at", { ascending: false }),
     supabase
@@ -134,10 +136,19 @@ export default async function DealDetailPage({
   const stageHistory = (stageHistoryRes.data ?? []) as unknown as {
     id: string;
     from_stage_id: string | null;
-    to_stage_id: string;
+    to_stage_id: string | null;
+    from_stage_name: string | null;
+    to_stage_name: string | null;
+    from_pipeline_id: string | null;
+    to_pipeline_id: string | null;
+    from_pipeline_name: string | null;
+    to_pipeline_name: string | null;
+    note: string | null;
     changed_at: string;
     profiles: Named;
   }[];
+  const allPipelines = (pipelineRes.data ?? []) as { id: string; name: string }[];
+  const currentPipeline = allPipelines.find((p) => p.id === deal.pipeline_id);
   const statusHistory = (statusHistoryRes.data ?? []) as unknown as {
     id: string;
     from_status: keyof typeof DEAL_STATUS_LABEL;
@@ -184,14 +195,28 @@ export default async function DealDetailPage({
         at: a.due_date ?? a.created_at,
         actor: null,
       })),
-    ...stageHistory.map((h) => ({
-      id: `stage-${h.id}`,
-      kind: "stage" as const,
-      title: "Etapa alterada",
-      body: `${h.from_stage_id ? (stageNameById.get(h.from_stage_id) ?? "—") : "—"} → ${stageNameById.get(h.to_stage_id) ?? "etapa de outro funil"}`,
-      at: h.changed_at,
-      actor: h.profiles?.full_name ?? null,
-    })),
+    ...stageHistory.map((h) => {
+      // Nomes gravados no momento da mudança (sobrevivem a renomear/excluir)
+      const fromStage = h.from_stage_name ?? (h.from_stage_id ? stageNameById.get(h.from_stage_id) : null) ?? "—";
+      const toStage = h.to_stage_name ?? (h.to_stage_id ? stageNameById.get(h.to_stage_id) : null) ?? "—";
+      const pipelineChanged =
+        h.from_pipeline_id !== null && h.to_pipeline_id !== null && h.from_pipeline_id !== h.to_pipeline_id;
+      return {
+        id: `stage-${h.id}`,
+        kind: "stage" as const,
+        title: pipelineChanged ? "Funil alterado" : "Etapa alterada",
+        body: [
+          pipelineChanged
+            ? `${h.from_pipeline_name ?? "—"} · ${fromStage} → ${h.to_pipeline_name ?? "—"} · ${toStage}`
+            : `${fromStage} → ${toStage}`,
+          h.note,
+        ]
+          .filter(Boolean)
+          .join(" · "),
+        at: h.changed_at,
+        actor: h.profiles?.full_name ?? null,
+      };
+    }),
     ...statusHistory.map((h) => ({
       id: `status-${h.id}`,
       kind: "status" as const,
@@ -265,7 +290,8 @@ export default async function DealDetailPage({
     <div className="mx-auto flex w-full max-w-detail flex-col gap-5">
       <DealHeader
         deal={deal}
-        pipelineName={pipelineRes.data?.name ?? "Funil"}
+        pipelineName={currentPipeline?.name ?? "Funil"}
+        pipelines={allPipelines}
         stages={stages}
         stageDays={Object.fromEntries(stageDays)}
         daysInCurrent={daysInCurrent}

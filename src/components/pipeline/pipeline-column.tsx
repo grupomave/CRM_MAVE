@@ -32,6 +32,7 @@ export function PipelineColumn({
   onShowMore,
   onCreate,
   onMove,
+  onMoveToPipeline,
 }: {
   stage: PipelineStage;
   stages: PipelineStage[];
@@ -47,6 +48,7 @@ export function PipelineColumn({
   onShowMore: () => void;
   onCreate: () => void;
   onMove: (dealId: string, stageId: string) => void;
+  onMoveToPipeline?: (deal: PipelineDeal) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: stage.id, data: { name: stage.name } });
   const total = deals.reduce((sum, d) => sum + d.value, 0);
@@ -144,6 +146,7 @@ export function PipelineColumn({
             density={density}
             stages={stages}
             onMove={onMove}
+            onMoveToPipeline={onMoveToPipeline}
             dragDisabled={dragDisabled}
           />
         ))}

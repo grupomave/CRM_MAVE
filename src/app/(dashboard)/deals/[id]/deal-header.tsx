@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
+  ArrowRightLeft,
   CalendarX,
   MoreHorizontal,
   RotateCcw,
@@ -47,6 +48,10 @@ import { cn, formatCurrencyBRL } from "@/lib/utils";
 import { LOST_REASON_LABEL, type LostReason } from "@/lib/supabase/types";
 import type { DealAlerts } from "@/lib/deal-alerts";
 import { DealReportButton } from "./deal-report-button";
+import {
+  MoveToPipelineDialog,
+  type MoveDealsTarget,
+} from "@/components/pipeline/move-to-pipeline-dialog";
 import type { DealDetail, DealStatus, StageOption } from "./types";
 import type { ComponentProps } from "react";
 
@@ -60,6 +65,7 @@ export function DealHeader({
   alerts,
   canManage,
   reportData,
+  pipelines,
 }: {
   deal: DealDetail;
   pipelineName: string;
@@ -70,11 +76,13 @@ export function DealHeader({
   alerts: DealAlerts;
   canManage: boolean;
   reportData: ComponentProps<typeof DealReportButton>["data"];
+  pipelines: { id: string; name: string }[];
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [lostOpen, setLostOpen] = useState(false);
   const [lostReason, setLostReason] = useState<LostReason | "">("");
+  const [moveTarget, setMoveTarget] = useState<MoveDealsTarget | null>(null);
   const currentStage = stages.find((s) => s.id === deal.stage_id);
   const currentIndex = stages.findIndex((s) => s.id === deal.stage_id);
   const isOpen = deal.status === "open";
@@ -89,18 +97,7 @@ export function DealHeader({
       toast.error("Não foi possível mudar a etapa", { description: friendlyError(error) });
       return;
     }
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (user) {
-      const { error: historyError } = await supabase.from("deal_stage_history").insert({
-        deal_id: deal.id,
-        from_stage_id: deal.stage_id,
-        to_stage_id: stageId,
-        changed_by: user.id,
-      });
-      if (historyError) toast.warning("Etapa alterada, mas o histórico não foi registrado");
-    }
+    // O histórico é gravado pelo gatilho deals_log_stage_change (migration 0024)
     setBusy(false);
     toast.success(`Movido para ${stages.find((s) => s.id === stageId)?.name}`);
     router.refresh();
@@ -260,6 +257,15 @@ export function DealHeader({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              {pipelines.length > 1 && (
+                <>
+                  <DropdownMenuItem onSelect={() => setMoveTarget({ ids: [deal.id], title: deal.title })}>
+                    <ArrowRightLeft />
+                    Mover para outro funil
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
               {isOpen && (
                 <DropdownMenuItem onSelect={toggleFrozen} disabled={busy}>
                   <Snowflake />
@@ -275,7 +281,7 @@ export function DealHeader({
                   </DropdownMenuItem>
                 </>
               )}
-              {!isOpen && !canManage && (
+              {!isOpen && !canManage && pipelines.length <= 1 && (
                 <DropdownMenuItem disabled>Nenhuma ação disponível</DropdownMenuItem>
               )}
             </DropdownMenuContent>
@@ -322,6 +328,17 @@ export function DealHeader({
           })}
         </ol>
       </nav>
+
+      <MoveToPipelineDialog
+        target={moveTarget}
+        pipelines={pipelines}
+        currentPipelineId={deal.pipeline_id}
+        onClose={() => setMoveTarget(null)}
+        onMoved={() => {
+          setMoveTarget(null);
+          router.refresh();
+        }}
+      />
 
       <Dialog open={lostOpen} onOpenChange={setLostOpen}>
         <DialogContent size="sm">

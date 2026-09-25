@@ -53,6 +53,7 @@ import {
   deleteUser,
 } from "@/lib/actions/users";
 import { maskPhoneBR } from "@/lib/masks";
+import { PipelinesSettings, type StageStats } from "./pipelines-settings";
 import { friendlyError, toast } from "@/lib/toast";
 import type { UserRole, CustomFieldType, EntityType } from "@/lib/supabase/types";
 
@@ -96,11 +97,15 @@ interface CustomField {
 
 export function SettingsTabs({
   profiles,
+  isAdmin,
+  stageStats,
   pipelines,
   stages,
   customFields,
   teams,
 }: {
+  isAdmin: boolean;
+  stageStats: StageStats;
   profiles: Profile[];
   pipelines: Pipeline[];
   stages: Stage[];
@@ -119,7 +124,7 @@ export function SettingsTabs({
         <UsersTab profiles={profiles} teams={teams} />
       </TabsContent>
       <TabsContent value="pipelines">
-        <PipelinesTab pipelines={pipelines} stages={stages} />
+        <PipelinesSettings pipelines={pipelines} stages={stages} stats={stageStats} isAdmin={isAdmin} />
       </TabsContent>
       <TabsContent value="fields">
         <CustomFieldsTab customFields={customFields} />
@@ -597,204 +602,6 @@ function CreateUserDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function PipelinesTab({
-  pipelines,
-  stages,
-}: {
-  pipelines: Pipeline[];
-  stages: Stage[];
-}) {
-  const router = useRouter();
-  const supabase = createClient();
-  const [newStageName, setNewStageName] = useState<Record<string, string>>({});
-  const [newPipelineName, setNewPipelineName] = useState("");
-  const [creatingPipeline, setCreatingPipeline] = useState(false);
-  const [editingPipelineId, setEditingPipelineId] = useState<string | null>(null);
-  const [editingName, setEditingName] = useState("");
-  const [editingStageId, setEditingStageId] = useState<string | null>(null);
-  const [editingStageName, setEditingStageName] = useState("");
-
-  async function createPipeline() {
-    if (!newPipelineName.trim()) return;
-    setCreatingPipeline(true);
-    await supabase.from("pipelines").insert({
-      name: newPipelineName.trim(),
-      is_default: pipelines.length === 0,
-    });
-    setNewPipelineName("");
-    setCreatingPipeline(false);
-    router.refresh();
-  }
-
-  async function renamePipeline(id: string) {
-    if (!editingName.trim()) return;
-    await supabase.from("pipelines").update({ name: editingName.trim() }).eq("id", id);
-    setEditingPipelineId(null);
-    router.refresh();
-  }
-
-  async function makeDefault(id: string) {
-    await supabase.from("pipelines").update({ is_default: false }).neq("id", id);
-    await supabase.from("pipelines").update({ is_default: true }).eq("id", id);
-    router.refresh();
-  }
-
-  async function renameStage(id: string) {
-    if (!editingStageName.trim()) return;
-    await supabase.from("pipeline_stages").update({ name: editingStageName.trim() }).eq("id", id);
-    setEditingStageId(null);
-    router.refresh();
-  }
-
-  async function updateRottingDays(id: string, rawValue: string) {
-    const trimmed = rawValue.trim();
-    const parsed = trimmed === "" ? null : Number(trimmed);
-    if (parsed !== null && (Number.isNaN(parsed) || parsed < 0)) return;
-    await supabase.from("pipeline_stages").update({ rotting_days: parsed }).eq("id", id);
-    router.refresh();
-  }
-
-  return (
-    <div className="flex flex-col gap-4">
-      <Card>
-        <CardContent className="flex items-end gap-2 p-4">
-          <div className="flex flex-1 flex-col gap-1.5">
-            <label className="text-xs text-muted-foreground">Novo funil</label>
-            <Input
-              placeholder="ex.: Funil Segurança, Funil Serviços..."
-              value={newPipelineName}
-              onChange={(e) => setNewPipelineName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && createPipeline()}
-            />
-          </div>
-          <Button onClick={createPipeline} disabled={creatingPipeline}>
-            {creatingPipeline ? "Criando..." : "Criar funil"}
-          </Button>
-        </CardContent>
-      </Card>
-
-      {pipelines.map((pipeline) => {
-        const pipelineStages = stages.filter((s) => s.pipeline_id === pipeline.id);
-        const isEditing = editingPipelineId === pipeline.id;
-        return (
-          <Card key={pipeline.id}>
-            <CardContent className="flex flex-col gap-3 p-4">
-              <div className="flex items-center gap-2">
-                {isEditing ? (
-                  <Input
-                    autoFocus
-                    value={editingName}
-                    onChange={(e) => setEditingName(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && renamePipeline(pipeline.id)}
-                    onBlur={() => renamePipeline(pipeline.id)}
-                    className="h-8 max-w-64"
-                  />
-                ) : (
-                  <button
-                    className="text-sm font-semibold hover:underline"
-                    onClick={() => {
-                      setEditingPipelineId(pipeline.id);
-                      setEditingName(pipeline.name);
-                    }}
-                    title="Clique para renomear"
-                  >
-                    {pipeline.name}
-                  </button>
-                )}
-                {pipeline.is_default ? (
-                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
-                    padrão
-                  </span>
-                ) : (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 px-2 text-xs"
-                    onClick={() => makeDefault(pipeline.id)}
-                  >
-                    Tornar padrão
-                  </Button>
-                )}
-              </div>
-              <ol className="flex flex-wrap gap-3">
-                {pipelineStages.map((s) => (
-                  <li key={s.id} className="flex flex-col items-start gap-1">
-                    {editingStageId === s.id ? (
-                      <Input
-                        autoFocus
-                        value={editingStageName}
-                        onChange={(e) => setEditingStageName(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && renameStage(s.id)}
-                        onBlur={() => renameStage(s.id)}
-                        className="h-7 w-40 text-xs"
-                      />
-                    ) : (
-                      <button
-                        className="rounded-md border border-border px-2 py-1 text-xs hover:border-primary hover:text-primary"
-                        onClick={() => {
-                          setEditingStageId(s.id);
-                          setEditingStageName(s.name);
-                        }}
-                        title="Clique para renomear"
-                      >
-                        {s.order_index + 1}. {s.name}
-                      </button>
-                    )}
-                    <div className="flex items-center gap-1 pl-1">
-                      <span className="text-micro text-muted-foreground">
-                        Estagna em
-                      </span>
-                      <Input
-                        type="number"
-                        min={0}
-                        defaultValue={s.rotting_days ?? ""}
-                        placeholder="—"
-                        title="Dias sem atividade até marcar como estagnado (vazio = sem alerta)"
-                        className="h-6 w-14 px-1 text-micro"
-                        onBlur={(e) => updateRottingDays(s.id, e.target.value)}
-                      />
-                      <span className="text-micro text-muted-foreground">dias</span>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Nome do novo estágio"
-                  value={newStageName[pipeline.id] ?? ""}
-                  onChange={(e) =>
-                    setNewStageName((prev) => ({
-                      ...prev,
-                      [pipeline.id]: e.target.value,
-                    }))
-                  }
-                  className="max-w-64"
-                />
-                <Button
-                  variant="outline"
-                  onClick={async () => {
-                    const name = newStageName[pipeline.id];
-                    if (!name) return;
-                    await supabase.from("pipeline_stages").insert({
-                      pipeline_id: pipeline.id,
-                      name,
-                      order_index: pipelineStages.length,
-                    });
-                    setNewStageName((prev) => ({ ...prev, [pipeline.id]: "" }));
-                    router.refresh();
-                  }}
-                >
-                  Adicionar estágio
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })}
-    </div>
   );
 }
 

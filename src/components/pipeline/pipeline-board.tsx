@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarRange, KanbanSquare, List, Plus, Rows2, Rows3, TrendingUp } from "lucide-react";
+import { ArrowRightLeft, CalendarRange, KanbanSquare, List, Plus, Rows2, Rows3, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -24,6 +24,7 @@ import { KanbanBoard } from "./kanban-board";
 import { PipelineSwitcher } from "./pipeline-switcher";
 import { DEAL_FILTER_KEYS, FilterChips, PipelineFilters, dealFilterChips } from "./pipeline-filters";
 import { DealsTable } from "./deals-table";
+import { MoveToPipelineDialog, type MoveDealsTarget } from "./move-to-pipeline-dialog";
 import type { OwnerOption, PipelineDeal, PipelineOption, PipelineStage } from "./types";
 
 const VIEW_MODES = ["kanban", "list", "forecast"] as const;
@@ -80,6 +81,16 @@ export function PipelineBoard({
   );
 
   const [createStageId, setCreateStageId] = useState<string | null>(null);
+  const [moveTarget, setMoveTarget] = useState<MoveDealsTarget | null>(null);
+
+  // Negócios movidos para outro funil saem deste quadro na hora
+  function handleMovedToPipeline(ids: string[]) {
+    const moved = new Set(ids);
+    setDeals((prev) => prev.filter((d) => !moved.has(d.id)));
+    selection.clear();
+    setMoveTarget(null);
+    router.refresh();
+  }
 
   // Tempo real: outro usuário moveu/alterou/excluiu um negócio
   useEffect(() => {
@@ -165,17 +176,7 @@ export function PipelineBoard({
       return;
     }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (user) {
-      await supabase.from("deal_stage_history").insert({
-        deal_id: dealId,
-        from_stage_id: previousStageId,
-        to_stage_id: newStageId,
-        changed_by: user.id,
-      });
-    }
+    // O histórico é gravado pelo gatilho deals_log_stage_change (migration 0024)
     toast.success(`“${deal.title}” movido para ${stageName}`, {
       action: { label: "Desfazer", onClick: () => moveDeal(dealId, previousStageId) },
     });
@@ -269,6 +270,7 @@ export function PipelineBoard({
           collapsedIds={collapsedIds}
           onToggleCollapse={toggleCollapse}
           onMove={moveDeal}
+          onMoveToPipeline={(deal) => setMoveTarget({ ids: [deal.id], title: deal.title })}
           onCreate={(stageId) => setCreateStageId(stageId)}
         />
       )}
@@ -281,7 +283,6 @@ export function PipelineBoard({
           page={page}
           pageSize={pageSize}
           selection={selection}
-          selectable={canReassign}
           update={update}
           emptyAction={
             chips.length > 0 ? (
@@ -297,18 +298,43 @@ export function PipelineBoard({
 
       {view === "forecast" && <ForecastView deals={filteredDeals} />}
 
-      {view === "list" && canReassign && (
+      {view === "list" && (
         <BulkActionBar
           count={selection.selected.size}
           totalFiltered={filteredDeals.length}
           onSelectAllFiltered={() => selection.setMany(filteredIds, true)}
           onClear={selection.clear}
         >
+          {pipelines.length > 1 && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() =>
+                setMoveTarget({
+                  ids: [...selection.selected],
+                  totalValue: deals
+                    .filter((d) => selection.selected.has(d.id))
+                    .reduce((sum, d) => sum + d.value, 0),
+                })
+              }
+            >
+              <ArrowRightLeft />
+              Mover para outro funil
+            </Button>
+          )}
           {canReassign && (
             <BulkOwnerButton table="deals" ids={[...selection.selected]} owners={owners} onDone={selection.clear} />
           )}
         </BulkActionBar>
       )}
+
+      <MoveToPipelineDialog
+        target={moveTarget}
+        pipelines={pipelines}
+        currentPipelineId={selectedPipelineId}
+        onClose={() => setMoveTarget(null)}
+        onMoved={() => moveTarget && handleMovedToPipeline(moveTarget.ids)}
+      />
 
       <NewDealDialog
         open={createStageId !== null}

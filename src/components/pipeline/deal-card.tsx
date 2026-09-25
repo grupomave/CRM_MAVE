@@ -9,6 +9,7 @@ import {
   CalendarX,
   Clock,
   ExternalLink,
+  KanbanSquare,
   MoreHorizontal,
   Snowflake,
   UserRound,
@@ -117,10 +118,12 @@ function DealCardMenu({
   deal,
   stages,
   onMove,
+  onMoveToPipeline,
 }: {
   deal: PipelineDeal;
   stages: PipelineStage[];
   onMove: (dealId: string, stageId: string) => void;
+  onMoveToPipeline?: (deal: PipelineDeal) => void;
 }) {
   return (
     <DropdownMenu>
@@ -162,6 +165,12 @@ function DealCardMenu({
             ))}
           </DropdownMenuSubContent>
         </DropdownMenuSub>
+        {onMoveToPipeline && (
+          <DropdownMenuItem onSelect={() => onMoveToPipeline(deal)}>
+            <KanbanSquare />
+            Mover para outro funil
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -172,12 +181,14 @@ function DealCardBody({
   density,
   stages,
   onMove,
+  onMoveToPipeline,
   interactive = true,
 }: {
   deal: PipelineDeal;
   density: KanbanDensity;
   stages: PipelineStage[];
   onMove?: (dealId: string, stageId: string) => void;
+  onMoveToPipeline?: (deal: PipelineDeal) => void;
   interactive?: boolean;
 }) {
   const compact = density === "compact";
@@ -204,7 +215,9 @@ function DealCardBody({
             <DealDetails deal={deal} stageName={stageName} />
           </TooltipContent>
         </Tooltip>
-        {interactive && onMove && <DealCardMenu deal={deal} stages={stages} onMove={onMove} />}
+        {interactive && onMove && (
+          <DealCardMenu deal={deal} stages={stages} onMove={onMove} onMoveToPipeline={onMoveToPipeline} />
+        )}
       </div>
 
       {deal.organization_name && (
@@ -261,12 +274,14 @@ export function DealCard({
   density,
   stages,
   onMove,
+  onMoveToPipeline,
   dragDisabled = false,
 }: {
   deal: PipelineDeal;
   density: KanbanDensity;
   stages: PipelineStage[];
   onMove: (dealId: string, stageId: string) => void;
+  onMoveToPipeline?: (deal: PipelineDeal) => void;
   dragDisabled?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -289,7 +304,13 @@ export function DealCard({
         isDragging && "border-dashed opacity-40 shadow-none",
       )}
     >
-      <DealCardBody deal={deal} density={density} stages={stages} onMove={onMove} />
+      <DealCardBody
+        deal={deal}
+        density={density}
+        stages={stages}
+        onMove={onMove}
+        onMoveToPipeline={onMoveToPipeline}
+      />
     </Card>
   );
 }

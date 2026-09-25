@@ -55,6 +55,7 @@ export function KanbanBoard({
   collapsedIds,
   onToggleCollapse,
   onMove,
+  onMoveToPipeline,
   onCreate,
 }: {
   stages: PipelineStage[];
@@ -63,6 +64,7 @@ export function KanbanBoard({
   collapsedIds: Set<string>;
   onToggleCollapse: (stageId: string) => void;
   onMove: (dealId: string, stageId: string) => void;
+  onMoveToPipeline?: (deal: PipelineDeal) => void;
   onCreate: (stageId: string) => void;
 }) {
   const isDesktop = useMediaQuery("(min-width: 768px)");
@@ -200,6 +202,7 @@ export function KanbanBoard({
               onShowMore={() => showMore(current.id)}
               onCreate={() => onCreate(current.id)}
               onMove={onMove}
+              onMoveToPipeline={onMoveToPipeline}
             />
           </DndContext>
         </div>
@@ -268,6 +271,7 @@ export function KanbanBoard({
               onShowMore={() => showMore(stage.id)}
               onCreate={() => onCreate(stage.id)}
               onMove={onMove}
+              onMoveToPipeline={onMoveToPipeline}
             />
           ))}
         </div>

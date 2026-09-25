@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { listUsersForAdmin, type AdminUserRow } from "@/lib/actions/users";
 import { SettingsTabs } from "./settings-tabs";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
+import type { StageStats } from "./pipelines-settings";
 import { PageHeader } from "@/components/ui/page-header";
 
 export const metadata = { title: "Configurações" };
@@ -45,6 +47,18 @@ export default async function SettingsPage() {
       supabase.from("teams").select("id, name"),
     ]);
 
+  // Quantidade e valor dos negócios por etapa (para mover/excluir etapas)
+  const dealsByStage = await fetchAllRows<{ stage_id: string; value: number }>((from, to) =>
+    supabase.from("deals").select("stage_id, value").range(from, to),
+  );
+  const stageStats: StageStats = {};
+  for (const d of dealsByStage) {
+    const current = stageStats[d.stage_id] ?? { count: 0, value: 0 };
+    current.count += 1;
+    current.value += Number(d.value) || 0;
+    stageStats[d.stage_id] = current;
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
@@ -61,6 +75,8 @@ export default async function SettingsPage() {
       )}
 
       <SettingsTabs
+        isAdmin={isAdmin}
+        stageStats={stageStats}
         profiles={profilesRes}
         pipelines={pipelinesRes.data ?? []}
         stages={stagesRes.data ?? []}

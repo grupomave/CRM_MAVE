@@ -42,6 +42,12 @@ export function AutomationRuleRow({
               <> → {stageNameById[toStageId]}</>
             )}
           </span>
+          {toStageId && !stageNameById[toStageId] && (
+            // A etapa foi excluída em Configurações (a regra é desativada junto)
+            <Badge variant="warning" className="w-fit">
+              Etapa excluída — edite ou remova esta regra
+            </Badge>
+          )}
           <div className="flex gap-1">
             {rule.actions_json?.map((a, i) => (
               <Badge key={i} variant="outline">
