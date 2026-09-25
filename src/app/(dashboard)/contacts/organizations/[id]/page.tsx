@@ -117,7 +117,12 @@ export default async function OrganizationDetailPage({
               <CardTitle>Documentos</CardTitle>
             </CardHeader>
             <CardContent>
-              <EntityFilesTab entityType="organization" entityId={id} attachments={attachmentsRes.data ?? []} />
+              <EntityFilesTab
+                entityType="organization"
+                entityId={id}
+                entityName={organization.name}
+                attachments={attachmentsRes.data ?? []}
+              />
             </CardContent>
           </Card>
         </div>

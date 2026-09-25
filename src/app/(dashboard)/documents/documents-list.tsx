@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CalendarClock, Download, FileText } from "lucide-react";
+import { CalendarClock, Download, FileArchive, FileText } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { BulkActionBar, useRowSelection } from "@/components/list/bulk-action-bar";
+import { ZipProgressDialog } from "@/components/zip-progress-dialog";
+import { downloadAttachment, formatBytes, useZipDownload, zipFileName } from "@/lib/attachments-download";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -14,7 +18,6 @@ import {
 } from "@/components/list/list-toolbar";
 import { matchesSearch } from "@/lib/filters/params";
 import { formatDate } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
 import { DOCUMENT_CATEGORIES } from "@/components/entity-files-tab";
 import {
   Table,
@@ -49,7 +52,8 @@ export function DocumentsList({ documents }: { documents: DocumentRow[] }) {
   const [entityType, setEntityType] = useState("");
   const [category, setCategory] = useState("");
   const [onlyExpiring, setOnlyExpiring] = useState(false);
-  const supabase = createClient();
+  const zip = useZipDownload();
+  const selection = useRowSelection(documents.map((d) => d.id));
 
   const now = new Date();
   const filtered = documents.filter((d) => {
@@ -64,15 +68,8 @@ export function DocumentsList({ documents }: { documents: DocumentRow[] }) {
     return true;
   });
 
-  async function download(path: string, name: string) {
-    const { data } = await supabase.storage.from("attachments").createSignedUrl(path, 60);
-    if (data?.signedUrl) {
-      const a = document.createElement("a");
-      a.href = data.signedUrl;
-      a.download = name;
-      a.click();
-    }
-  }
+  const filteredIds = filtered.map((d) => d.id);
+  const selectedDocs = documents.filter((d) => selection.selected.has(d.id));
 
   return (
     <div className="flex flex-col gap-4">
@@ -115,6 +112,14 @@ export function DocumentsList({ documents }: { documents: DocumentRow[] }) {
       <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-10">
+                <Checkbox
+                  aria-label="Selecionar todos os documentos filtrados"
+                  checked={selection.headerState(filteredIds)}
+                  onCheckedChange={(checked) => selection.setMany(filteredIds, checked === true)}
+                  disabled={filteredIds.length === 0}
+                />
+              </TableHead>
               <TableHead>Arquivo</TableHead>
               <TableHead>Categoria</TableHead>
               <TableHead>Vinculado a</TableHead>
@@ -130,8 +135,16 @@ export function DocumentsList({ documents }: { documents: DocumentRow[] }) {
                 d.expires_at &&
                 !expired &&
                 new Date(d.expires_at).getTime() - now.getTime() < 30 * 86400000;
+              const isSelected = selection.selected.has(d.id);
               return (
-                <TableRow key={d.id}>
+                <TableRow key={d.id} data-state={isSelected ? "selected" : undefined}>
+                  <TableCell>
+                    <Checkbox
+                      aria-label={`Selecionar ${d.file_name}`}
+                      checked={isSelected}
+                      onCheckedChange={(checked) => selection.toggle(d.id, checked === true)}
+                    />
+                  </TableCell>
                   <TableCell className="font-medium">{d.file_name}</TableCell>
                   <TableCell className="text-muted-foreground">{d.category ?? "—"}</TableCell>
                   <TableCell>
@@ -156,7 +169,7 @@ export function DocumentsList({ documents }: { documents: DocumentRow[] }) {
                       variant="ghost"
                       size="icon-sm"
                       aria-label={`Baixar ${d.file_name}`}
-                      onClick={() => download(d.storage_path, d.file_name)}
+                      onClick={() => downloadAttachment(d)}
                     >
                       <Download />
                     </Button>
@@ -166,7 +179,7 @@ export function DocumentsList({ documents }: { documents: DocumentRow[] }) {
             })}
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6}>
+                <TableCell colSpan={7}>
                   <EmptyState
                     icon={FileText}
                     title={documents.length === 0 ? "Nenhum documento anexado ainda" : "Nenhum documento encontrado"}
@@ -181,6 +194,23 @@ export function DocumentsList({ documents }: { documents: DocumentRow[] }) {
             )}
           </TableBody>
         </Table>
+
+      <BulkActionBar
+        count={selectedDocs.length}
+        totalFiltered={filtered.length}
+        onSelectAllFiltered={() => selection.setMany(filteredIds, true)}
+        onClear={selection.clear}
+      >
+        <span className="numeric text-caption text-muted-foreground">
+          {formatBytes(selectedDocs.reduce((sum, d) => sum + d.size_bytes, 0))}
+        </span>
+        <Button size="sm" disabled={zip.busy} onClick={() => zip.start(selectedDocs, zipFileName("documentos"))}>
+          <FileArchive />
+          Baixar selecionados (.zip)
+        </Button>
+      </BulkActionBar>
+
+      <ZipProgressDialog progress={zip.progress} onCancel={zip.cancel} />
     </div>
   );
 }

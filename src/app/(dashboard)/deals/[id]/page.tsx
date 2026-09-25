@@ -304,6 +304,7 @@ export default async function DealDetailPage({
         />
         <DealWorkspace
           dealId={deal.id}
+          dealTitle={deal.title}
           activities={activities}
           attachments={attachments}
           proposals={proposals}

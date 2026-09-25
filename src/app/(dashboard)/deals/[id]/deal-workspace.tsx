@@ -68,12 +68,14 @@ function formatDue(iso: string) {
 
 export function DealWorkspace({
   dealId,
+  dealTitle,
   activities,
   attachments,
   proposals,
   timeline,
 }: {
   dealId: string;
+  dealTitle: string;
   activities: ActivityItem[];
   attachments: EntityAttachment[];
   proposals: ComponentProps<typeof ProposalsTab>["proposals"];
@@ -191,7 +193,7 @@ export function DealWorkspace({
           </TabsContent>
 
           <TabsContent value="files">
-            <EntityFilesTab entityType="deal" entityId={dealId} attachments={attachments} />
+            <EntityFilesTab entityType="deal" entityId={dealId} entityName={dealTitle} attachments={attachments} />
           </TabsContent>
         </Tabs>
       </Card>

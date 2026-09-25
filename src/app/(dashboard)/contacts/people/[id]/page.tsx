@@ -92,7 +92,12 @@ export default async function ContactDetailPage({
               <CardTitle>Documentos</CardTitle>
             </CardHeader>
             <CardContent>
-              <EntityFilesTab entityType="contact" entityId={id} attachments={attachmentsRes.data ?? []} />
+              <EntityFilesTab
+                entityType="contact"
+                entityId={id}
+                entityName={contact.name}
+                attachments={attachmentsRes.data ?? []}
+              />
             </CardContent>
           </Card>
         </div>
