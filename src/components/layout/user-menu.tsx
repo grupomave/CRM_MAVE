@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ThemeToggleMenuItem } from "@/components/layout/theme-toggle";
+import { ThemeToggleMenuItems } from "@/components/layout/theme-toggle";
 import { signOutAction } from "@/lib/actions/auth";
 import { initials } from "@/lib/utils";
 
@@ -48,7 +48,8 @@ export function UserMenu({
             Perfil
           </Link>
         </DropdownMenuItem>
-        <ThemeToggleMenuItem />
+        <DropdownMenuSeparator />
+        <ThemeToggleMenuItems />
         <DropdownMenuSeparator />
         <form action={signOutAction}>
           <DropdownMenuItem asChild variant="destructive">

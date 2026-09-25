@@ -13,7 +13,7 @@ export function AuthShell({
   return (
     <div className="flex min-h-screen flex-col bg-background lg:flex-row">
       {/* Faixa compacta em telas pequenas */}
-      <div className="flex items-center gap-3 border-b-[3px] border-brand-secondary bg-brand-primary px-6 py-4 lg:hidden">
+      <div className="flex items-center gap-3 border-b-4 border-brand-yellow bg-brand px-6 py-4 lg:hidden">
         <Image
           src="/logo-brasao.png"
           alt="Grupo Mave"
@@ -35,19 +35,19 @@ export function AuthShell({
       {/* Painel de marca em telas grandes, com o corte diagonal da logo */}
       <div className="relative hidden shrink-0 overflow-hidden lg:block lg:w-[44%]">
         <div
-          className="absolute inset-0 bg-brand-secondary"
+          className="absolute inset-0 bg-brand-yellow"
           style={{
             clipPath: "polygon(0 0, 100% 0, calc(100% - 64px) 100%, 0 100%)",
           }}
         />
         <div
-          className="absolute inset-0 bg-gradient-to-br from-brand-primary to-brand-primary-hover"
+          className="absolute inset-0 bg-brand"
           style={{
             clipPath:
               "polygon(0 0, calc(100% - 8px) 0, calc(100% - 72px) 100%, 0 100%)",
           }}
         />
-        <div className="absolute top-1/3 -left-24 h-72 w-72 rounded-full bg-brand-accent/25 blur-3xl" />
+        <div className="absolute top-1/3 -left-24 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
 
         <div className="relative z-10 flex h-full flex-col justify-between px-12 py-14 xl:px-16">
           <div className="flex items-center gap-4">

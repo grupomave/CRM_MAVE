@@ -493,7 +493,7 @@ export function DealDetailTabs({
               <Card key={h.id}>
                 <CardContent className="flex items-center justify-between p-3 text-sm">
                   <span className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-[10px] uppercase">
+                    <Badge variant="outline" className="text-micro uppercase">
                       {h.kind === "stage" ? "Etapa" : "Status"}
                     </Badge>
                     {h.label}

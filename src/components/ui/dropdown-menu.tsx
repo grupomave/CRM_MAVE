@@ -2,20 +2,28 @@
 
 import * as React from "react";
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
+import { Check, Circle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const DropdownMenu = DropdownMenuPrimitive.Root;
 const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
 const DropdownMenuGroup = DropdownMenuPrimitive.Group;
-const DropdownMenuSeparator = ({
+const DropdownMenuRadioGroup = DropdownMenuPrimitive.RadioGroup;
+
+const itemClasses =
+  "relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-muted-foreground";
+
+function DropdownMenuSeparator({
   className,
   ...props
-}: React.ComponentProps<typeof DropdownMenuPrimitive.Separator>) => (
-  <DropdownMenuPrimitive.Separator
-    className={cn("-mx-1 my-1 h-px bg-border", className)}
-    {...props}
-  />
-);
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Separator>) {
+  return (
+    <DropdownMenuPrimitive.Separator
+      className={cn("-mx-1 my-1 h-px bg-border", className)}
+      {...props}
+    />
+  );
+}
 
 function DropdownMenuContent({
   className,
@@ -49,14 +57,48 @@ function DropdownMenuItem({
   return (
     <DropdownMenuPrimitive.Item
       className={cn(
-        "relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-        "focus:bg-muted",
-        variant === "destructive" && "text-destructive focus:bg-destructive/10",
+        itemClasses,
+        variant === "destructive" &&
+          "text-destructive focus:bg-destructive-subtle [&_svg]:text-destructive",
         inset && "pl-8",
         className,
       )}
       {...props}
     />
+  );
+}
+
+function DropdownMenuCheckboxItem({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.CheckboxItem>) {
+  return (
+    <DropdownMenuPrimitive.CheckboxItem className={cn(itemClasses, "pl-8", className)} {...props}>
+      <span className="absolute left-2 flex size-4 items-center justify-center">
+        <DropdownMenuPrimitive.ItemIndicator>
+          <Check className="!text-primary" />
+        </DropdownMenuPrimitive.ItemIndicator>
+      </span>
+      {children}
+    </DropdownMenuPrimitive.CheckboxItem>
+  );
+}
+
+function DropdownMenuRadioItem({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.RadioItem>) {
+  return (
+    <DropdownMenuPrimitive.RadioItem className={cn(itemClasses, "pl-8", className)} {...props}>
+      <span className="absolute left-2 flex size-4 items-center justify-center">
+        <DropdownMenuPrimitive.ItemIndicator>
+          <Circle className="!size-2 fill-current !text-primary" />
+        </DropdownMenuPrimitive.ItemIndicator>
+      </span>
+      {children}
+    </DropdownMenuPrimitive.RadioItem>
   );
 }
 
@@ -70,10 +112,19 @@ function DropdownMenuLabel({
   return (
     <DropdownMenuPrimitive.Label
       className={cn(
-        "px-2 py-1.5 text-xs font-medium text-muted-foreground",
+        "px-2 py-1.5 text-caption font-medium text-muted-foreground",
         inset && "pl-8",
         className,
       )}
+      {...props}
+    />
+  );
+}
+
+function DropdownMenuShortcut({ className, ...props }: React.ComponentProps<"span">) {
+  return (
+    <span
+      className={cn("ml-auto text-caption tracking-wide text-muted-foreground", className)}
       {...props}
     />
   );
@@ -84,7 +135,11 @@ export {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuCheckboxItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuShortcut,
   DropdownMenuGroup,
 };

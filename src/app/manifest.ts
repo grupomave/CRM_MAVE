@@ -10,7 +10,7 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "CRM interno do Grupo Mave — pipeline, contatos e atividades comerciais",
     start_url: "/dashboard",
     display: "standalone",
-    background_color: "#f7f8fa",
+    background_color: "#f5f6f8",
     theme_color: "#255474",
     lang: "pt-BR",
     icons: [

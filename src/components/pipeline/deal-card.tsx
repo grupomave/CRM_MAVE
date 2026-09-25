@@ -14,9 +14,9 @@ function borderClassFor(deal: PipelineDeal) {
   return deal.overdue_days
     ? "border-l-4 border-l-destructive"
     : deal.is_stagnant
-      ? "border-l-4 border-l-violet-500"
+      ? "border-l-4 border-l-stagnant"
       : deal.no_upcoming_activity
-        ? "border-l-4 border-l-amber-500"
+        ? "border-l-4 border-l-warning"
         : "";
 }
 
@@ -71,7 +71,7 @@ function DealCardContent({ deal }: { deal: PipelineDeal }) {
         <Tooltip>
           <TooltipTrigger asChild>
             <Avatar className="size-6">
-              <AvatarFallback className="text-[10px]">
+              <AvatarFallback className="text-micro">
                 {initials(deal.owner_name)}
               </AvatarFallback>
             </Avatar>

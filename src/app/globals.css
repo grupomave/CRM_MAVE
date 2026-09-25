@@ -1,82 +1,248 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/* Ativa a variante `dark:` quando <html data-theme="dark">, controlado
-   pelo toggle de tema no menu do avatar (seção 3.2 do prompt.md) */
+/* ==========================================================================
+   Design system do CRM Grupo Mave — ver "Padrões de UI" no CLAUDE.md.
+   Toda cor, sombra, raio, fonte e duração de transição sai daqui. Os
+   componentes usam só as classes geradas por estes tokens (bg-card,
+   text-muted-foreground, shadow-md...), nunca hex ou px avulsos.
+   ========================================================================== */
+
+/* Ativa a variante `dark:` quando <html data-theme="dark">. O tema é
+   resolvido antes da primeira pintura pelo script em app/layout.tsx. */
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
 @theme {
+  /* Remove a paleta padrão do Tailwind (red-500, amber-400...): só os
+     tokens abaixo existem, o que impede cores "soltas" nos componentes. */
+  --color-*: initial;
+  --color-white: #ffffff;
+  --color-black: #000000;
+
+  /* Identidade Grupo Mave */
+  --color-brand: #255474;
+  --color-brand-yellow: #f3d929;
+
+  /* Superfícies e texto (cinzas frios) */
+  --color-background: #f5f6f8;
+  --color-foreground: #14181f;
+  --color-card: #ffffff;
+  --color-card-foreground: #14181f;
+  --color-muted: #eef0f3;
+  --color-muted-foreground: #5a6270;
+  --color-border: #e2e5ea;
+  --color-border-strong: #cdd2da;
+  --color-input: #d9dde3;
+  --color-overlay: rgb(15 20 28 / 0.45);
+
+  /* Cor primária (única cor de marca na interface) */
+  --color-primary: #255474;
+  --color-primary-hover: #1d4560;
+  --color-primary-foreground: #ffffff;
+  --color-primary-subtle: #e9f0f5;
+  --color-ring: #255474;
+
+  /* Secundária = neutra (botões secundários, badges neutros) */
+  --color-secondary: #eef0f3;
+  --color-secondary-foreground: #14181f;
+  --color-accent: #eef0f3;
+  --color-accent-foreground: #14181f;
+
+  /* Semânticas — base (ícones/bordas/botões), subtle (fundo de badge),
+     strong (texto sobre o subtle, contraste AA) */
+  --color-success: #1f8a5a;
+  --color-success-foreground: #ffffff;
+  --color-success-subtle: #e6f4ec;
+  --color-success-strong: #166a44;
+
+  --color-warning: #c77700;
+  --color-warning-foreground: #ffffff;
+  --color-warning-subtle: #fdf3e1;
+  --color-warning-strong: #8a5300;
+
+  --color-destructive: #d14343;
+  --color-destructive-foreground: #ffffff;
+  --color-destructive-subtle: #fcebeb;
+  --color-destructive-strong: #a82f2f;
+
+  --color-info: #1f6fb2;
+  --color-info-foreground: #ffffff;
+  --color-info-subtle: #e7f1fa;
+  --color-info-strong: #185a91;
+
+  /* Negócio estagnado (alerta de "rotting" no Kanban) */
+  --color-stagnant: #7c5cc4;
+  --color-stagnant-subtle: #f1edfa;
+  --color-stagnant-strong: #5b3f9e;
+
+  /* Sidebar */
+  --color-sidebar: #ffffff;
+  --color-sidebar-foreground: #3b4250;
+  --color-sidebar-active: #e9f0f5;
+  --color-sidebar-active-foreground: #255474;
+
+  /* Paleta de gráficos (ordem fixa de séries) */
+  --color-chart-1: #255474;
+  --color-chart-2: #4f8fb8;
+  --color-chart-3: #1f8a5a;
+  --color-chart-4: #c77700;
+  --color-chart-5: #7c5cc4;
+  --color-chart-6: #9aa4b2;
+
+  /* Tipografia */
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
 
-  /* Identidade Grupo Mave (seção 5 do prompt.md) */
-  --color-brand-primary: #255474;
-  --color-brand-primary-hover: #1e455f;
-  --color-brand-secondary: #f3d929;
-  --color-brand-accent: #0492d5;
-  --color-brand-success: #1fb37a;
-  --color-brand-danger: #e5484d;
-  --color-brand-neutral-bg: #f7f8fa;
-  --color-brand-sidebar-bg: #ffffff;
-  --color-brand-text: #1c1f23;
+  --text-micro: 0.6875rem;
+  --text-micro--line-height: 1rem;
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1rem;
+  --text-body: 0.875rem;
+  --text-body--line-height: 1.25rem;
+  --text-subtitle: 1rem;
+  --text-subtitle--line-height: 1.5rem;
+  --text-subtitle--font-weight: 600;
+  --text-title: 1.375rem;
+  --text-title--line-height: 1.875rem;
+  --text-title--font-weight: 600;
+  --text-title--letter-spacing: -0.01em;
+  --text-display: 1.75rem;
+  --text-display--line-height: 2.25rem;
+  --text-display--font-weight: 600;
+  --text-display--letter-spacing: -0.02em;
 
-  /* Tokens semânticos (usados pelos componentes de UI) */
-  --color-background: var(--color-brand-neutral-bg);
-  --color-foreground: var(--color-brand-text);
-  --color-card: #ffffff;
-  --color-card-foreground: var(--color-brand-text);
-  --color-primary: var(--color-brand-primary);
-  --color-primary-hover: var(--color-brand-primary-hover);
-  --color-primary-foreground: #ffffff;
-  --color-secondary: var(--color-brand-secondary);
-  --color-secondary-foreground: var(--color-brand-text);
-  --color-muted: #eef0f3;
-  --color-muted-foreground: #6b7280;
-  --color-accent: var(--color-brand-accent);
-  --color-accent-foreground: #ffffff;
-  --color-destructive: var(--color-brand-danger);
-  --color-destructive-foreground: #ffffff;
-  --color-success: var(--color-brand-success);
-  --color-success-foreground: #ffffff;
-  --color-border: #e2e5ea;
-  --color-input: #e2e5ea;
-  --color-ring: var(--color-brand-primary);
-  --color-sidebar: var(--color-brand-sidebar-bg);
-  --color-sidebar-foreground: var(--color-brand-text);
-  --color-sidebar-active: #eaf1f5;
-
+  /* Raios */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
   --radius-lg: 0.625rem;
-  --radius-md: calc(var(--radius-lg) - 2px);
-  --radius-sm: calc(var(--radius-lg) - 4px);
+  --radius-xl: 0.875rem;
+
+  /* Sombras (sutis; em modo escuro a borda carrega a elevação) */
+  --shadow-xs: 0 1px 2px 0 rgb(16 24 40 / 0.05);
+  --shadow-sm: 0 1px 3px 0 rgb(16 24 40 / 0.08), 0 1px 2px -1px rgb(16 24 40 / 0.05);
+  --shadow-md: 0 4px 12px -2px rgb(16 24 40 / 0.1), 0 2px 4px -2px rgb(16 24 40 / 0.06);
+  --shadow-lg: 0 16px 32px -8px rgb(16 24 40 / 0.2), 0 4px 8px -4px rgb(16 24 40 / 0.08);
+
+  /* Movimento */
+  --default-transition-duration: 150ms;
+  --default-transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Larguras de conteúdo */
+  --container-form: 48rem;
+  --container-detail: 80rem;
 }
 
 [data-theme="dark"] {
-  --color-brand-primary: #4a8cb0;
-  --color-brand-primary-hover: #5fa0c4;
-  --color-brand-accent: #4fb4e8;
-  --color-brand-success: #2ecc8f;
-  --color-brand-danger: #f0616a;
-  --color-brand-neutral-bg: #12161c;
-  --color-brand-sidebar-bg: #1a1f27;
-  --color-brand-text: #e8eaed;
-
-  --color-background: var(--color-brand-neutral-bg);
-  --color-foreground: var(--color-brand-text);
-  --color-card: #1a1f27;
-  --color-card-foreground: var(--color-brand-text);
-  --color-muted: #232a35;
+  --color-background: #0f1318;
+  --color-foreground: #e6e9ee;
+  --color-card: #161b22;
+  --color-card-foreground: #e6e9ee;
+  --color-muted: #1e252e;
   --color-muted-foreground: #9aa4b2;
-  --color-border: #2a323e;
-  --color-input: #2a323e;
-  --color-sidebar-active: #22303a;
+  --color-border: #29313c;
+  --color-border-strong: #3a4350;
+  --color-input: #333c48;
+  --color-overlay: rgb(0 0 0 / 0.6);
+
+  --color-primary: #6aa6cf;
+  --color-primary-hover: #82b6da;
+  --color-primary-foreground: #0b1620;
+  --color-primary-subtle: #172633;
+  --color-ring: #6aa6cf;
+
+  --color-secondary: #1e252e;
+  --color-secondary-foreground: #e6e9ee;
+  --color-accent: #1e252e;
+  --color-accent-foreground: #e6e9ee;
+
+  --color-success: #3fb57f;
+  --color-success-foreground: #07170f;
+  --color-success-subtle: #13271d;
+  --color-success-strong: #74d3a5;
+
+  --color-warning: #e0a030;
+  --color-warning-foreground: #1c1203;
+  --color-warning-subtle: #2a2113;
+  --color-warning-strong: #f2c26b;
+
+  --color-destructive: #ef6b6b;
+  --color-destructive-foreground: #1b0909;
+  --color-destructive-subtle: #2e1a1c;
+  --color-destructive-strong: #f59b9b;
+
+  --color-info: #5aa7e6;
+  --color-info-foreground: #06121d;
+  --color-info-subtle: #15253a;
+  --color-info-strong: #8cc4f0;
+
+  --color-stagnant: #a48be0;
+  --color-stagnant-subtle: #221c33;
+  --color-stagnant-strong: #c5b3f0;
+
+  --color-sidebar: #12171d;
+  --color-sidebar-foreground: #b4bcc8;
+  --color-sidebar-active: #1c2a36;
+  --color-sidebar-active-foreground: #9cc8e6;
+
+  --color-chart-1: #6aa6cf;
+  --color-chart-2: #3f7aa3;
+  --color-chart-3: #3fb57f;
+  --color-chart-4: #e0a030;
+  --color-chart-5: #a48be0;
+  --color-chart-6: #6b7584;
+
+  color-scheme: dark;
 }
 
 @layer base {
   * {
     border-color: var(--color-border);
   }
+
+  html {
+    color-scheme: light;
+    -webkit-text-size-adjust: 100%;
+  }
+
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+    text-rendering: optimizeLegibility;
   }
+
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background-color: var(--color-primary-subtle);
+    color: var(--color-foreground);
+  }
+
+  /* Respeita quem pediu menos movimento no sistema operacional */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* Barra de rolagem discreta (colunas do Kanban, tabelas) */
+@utility scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+
+/* Valores monetários e colunas numéricas */
+@utility numeric {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum", "cv11";
 }

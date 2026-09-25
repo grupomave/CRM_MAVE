@@ -688,7 +688,7 @@ function PipelinesTab({
                       </button>
                     )}
                     <div className="flex items-center gap-1 pl-1">
-                      <span className="text-[10px] text-muted-foreground">
+                      <span className="text-micro text-muted-foreground">
                         Estagna em
                       </span>
                       <Input
@@ -697,10 +697,10 @@ function PipelinesTab({
                         defaultValue={s.rotting_days ?? ""}
                         placeholder="—"
                         title="Dias sem atividade até marcar como estagnado (vazio = sem alerta)"
-                        className="h-6 w-14 px-1 text-[10px]"
+                        className="h-6 w-14 px-1 text-micro"
                         onBlur={(e) => updateRottingDays(s.id, e.target.value)}
                       />
-                      <span className="text-[10px] text-muted-foreground">dias</span>
+                      <span className="text-micro text-muted-foreground">dias</span>
                     </div>
                   </li>
                 ))}

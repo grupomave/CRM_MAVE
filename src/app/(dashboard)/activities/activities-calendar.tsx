@@ -87,7 +87,7 @@ export function ActivitiesCalendar({ activities }: { activities: CalendarActivit
             >
               <span
                 className={cn(
-                  "self-end text-[11px]",
+                  "self-end text-micro",
                   isToday(day)
                     ? "flex size-5 items-center justify-center rounded-full bg-primary font-semibold text-primary-foreground"
                     : inMonth
@@ -103,7 +103,7 @@ export function ActivitiesCalendar({ activities }: { activities: CalendarActivit
                   const content = (
                     <span
                       className={cn(
-                        "block truncate rounded px-1 py-0.5 text-[10px]",
+                        "block truncate rounded px-1 py-0.5 text-micro",
                         a.done
                           ? "bg-muted text-muted-foreground line-through"
                           : overdue
@@ -124,7 +124,7 @@ export function ActivitiesCalendar({ activities }: { activities: CalendarActivit
                   );
                 })}
                 {dayActivities.length > 3 && (
-                  <span className="text-[10px] text-muted-foreground">
+                  <span className="text-micro text-muted-foreground">
                     +{dayActivities.length - 3} mais
                   </span>
                 )}

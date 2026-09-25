@@ -1,47 +1,90 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Moon, Sun } from "lucide-react";
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { Monitor, Moon, Sun } from "lucide-react";
+import {
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+} from "@/components/ui/dropdown-menu";
+
+export type ThemePreference = "light" | "dark" | "system";
+
+const STORAGE_KEY = "mave-theme";
+const DARK_QUERY = "(prefers-color-scheme: dark)";
+
+function readPreference(): ThemePreference {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored === "light" || stored === "dark" ? stored : "system";
+  } catch {
+    return "system";
+  }
+}
+
+function applyTheme(pref: ThemePreference) {
+  const dark =
+    pref === "dark" || (pref === "system" && window.matchMedia(DARK_QUERY).matches);
+  document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+}
 
 export function useTheme() {
-  const [theme, setThemeState] = useState<"light" | "dark">("light");
+  const [preference, setPreferenceState] = useState<ThemePreference>("system");
 
   useEffect(() => {
-    // Lê o tema já aplicado pelo script inline em layout.tsx (antes da
-    // hidratação) — não dá para saber esse valor durante a renderização no
-    // servidor, então sincronizar no mount é o único jeito.
-    const current = document.documentElement.getAttribute("data-theme");
+    // O tema já foi aplicado pelo script inline em app/layout.tsx antes da
+    // hidratação; aqui só sincronizamos o estado do React com a preferência
+    // salva (não dá para ler localStorage durante a renderização no servidor).
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setThemeState(current === "dark" ? "dark" : "light");
+    setPreferenceState(readPreference());
   }, []);
 
-  function setTheme(next: "light" | "dark") {
-    document.documentElement.setAttribute("data-theme", next);
+  // Com "Sistema", acompanha a troca de tema do SO em tempo real.
+  useEffect(() => {
+    if (preference !== "system") return;
+    const media = window.matchMedia(DARK_QUERY);
+    const onChange = () => applyTheme("system");
+    media.addEventListener("change", onChange);
+    return () => media.removeEventListener("change", onChange);
+  }, [preference]);
+
+  function setPreference(next: ThemePreference) {
     try {
-      localStorage.setItem("mave-theme", next);
+      if (next === "system") localStorage.removeItem(STORAGE_KEY);
+      else localStorage.setItem(STORAGE_KEY, next);
     } catch {
       // localStorage indisponível (modo privado) — tema não persiste, tudo bem
     }
-    setThemeState(next);
+    applyTheme(next);
+    setPreferenceState(next);
   }
 
-  return { theme, setTheme };
+  return { preference, setPreference };
 }
 
-export function ThemeToggleMenuItem() {
-  const { theme, setTheme } = useTheme();
-  const isDark = theme === "dark";
+export function ThemeToggleMenuItems() {
+  const { preference, setPreference } = useTheme();
 
   return (
-    <DropdownMenuItem
-      onSelect={(e) => {
-        e.preventDefault();
-        setTheme(isDark ? "light" : "dark");
-      }}
-    >
-      {isDark ? <Sun className="size-4" /> : <Moon className="size-4" />}
-      {isDark ? "Tema claro" : "Tema escuro"}
-    </DropdownMenuItem>
+    <>
+      <DropdownMenuLabel>Tema</DropdownMenuLabel>
+      <DropdownMenuRadioGroup
+        value={preference}
+        onValueChange={(value) => setPreference(value as ThemePreference)}
+      >
+        <DropdownMenuRadioItem value="system" onSelect={(e) => e.preventDefault()}>
+          <Monitor />
+          Sistema
+        </DropdownMenuRadioItem>
+        <DropdownMenuRadioItem value="light" onSelect={(e) => e.preventDefault()}>
+          <Sun />
+          Claro
+        </DropdownMenuRadioItem>
+        <DropdownMenuRadioItem value="dark" onSelect={(e) => e.preventDefault()}>
+          <Moon />
+          Escuro
+        </DropdownMenuRadioItem>
+      </DropdownMenuRadioGroup>
+    </>
   );
 }

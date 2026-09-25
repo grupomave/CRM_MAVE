@@ -96,7 +96,7 @@ export function CommandPalette() {
       >
         <Search className="size-4" />
         Buscar...
-        <kbd className="ml-auto rounded border border-border bg-muted px-1.5 text-[10px]">
+        <kbd className="ml-auto rounded border border-border bg-muted px-1.5 text-micro">
           Ctrl K
         </kbd>
       </button>

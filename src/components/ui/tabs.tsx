@@ -6,14 +6,21 @@ import { cn } from "@/lib/utils";
 
 const Tabs = TabsPrimitive.Root;
 
+// Duas aparências:
+// - "pill" (padrão): segmentado, para alternar visões (Kanban/Lista, filtros)
+// - "underline": abas de conteúdo de uma página (detalhe do negócio, Configurações)
 function TabsList({
   className,
+  variant = "pill",
   ...props
-}: React.ComponentProps<typeof TabsPrimitive.List>) {
+}: React.ComponentProps<typeof TabsPrimitive.List> & { variant?: "pill" | "underline" }) {
   return (
     <TabsPrimitive.List
+      data-variant={variant}
       className={cn(
-        "inline-flex h-9 max-w-full items-center gap-1 overflow-x-auto rounded-md bg-muted p-1",
+        "group/tabs scrollbar-thin inline-flex max-w-full items-center overflow-x-auto",
+        variant === "pill" && "h-9 gap-1 rounded-md bg-muted p-1",
+        variant === "underline" && "h-10 w-full gap-4 border-b border-border",
         className,
       )}
       {...props}
@@ -28,7 +35,11 @@ function TabsTrigger({
   return (
     <TabsPrimitive.Trigger
       className={cn(
-        "inline-flex shrink-0 items-center justify-center rounded-sm px-3 py-1 text-sm font-medium text-muted-foreground transition-colors data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-xs",
+        "inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap text-sm font-medium text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4",
+        // pill
+        "group-data-[variant=pill]/tabs:rounded-sm group-data-[variant=pill]/tabs:px-3 group-data-[variant=pill]/tabs:py-1 group-data-[variant=pill]/tabs:data-[state=active]:bg-card group-data-[variant=pill]/tabs:data-[state=active]:text-foreground group-data-[variant=pill]/tabs:data-[state=active]:shadow-xs",
+        // underline
+        "group-data-[variant=underline]/tabs:-mb-px group-data-[variant=underline]/tabs:h-10 group-data-[variant=underline]/tabs:border-b-2 group-data-[variant=underline]/tabs:border-transparent group-data-[variant=underline]/tabs:px-0.5 group-data-[variant=underline]/tabs:data-[state=active]:border-primary group-data-[variant=underline]/tabs:data-[state=active]:text-primary",
         className,
       )}
       {...props}
@@ -41,7 +52,10 @@ function TabsContent({
   ...props
 }: React.ComponentProps<typeof TabsPrimitive.Content>) {
   return (
-    <TabsPrimitive.Content className={cn("mt-4", className)} {...props} />
+    <TabsPrimitive.Content
+      className={cn("mt-4 outline-none", className)}
+      {...props}
+    />
   );
 }
 

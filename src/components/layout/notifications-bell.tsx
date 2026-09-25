@@ -75,7 +75,7 @@ export function NotificationsBell({ userId }: { userId: string }) {
       <DropdownMenuTrigger className="relative rounded-md p-2 outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring">
         <Bell className="size-4" />
         {unreadCount > 0 && (
-          <span className="absolute right-1 top-1 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] text-destructive-foreground">
+          <span className="absolute right-1 top-1 flex size-4 items-center justify-center rounded-full bg-destructive text-micro text-destructive-foreground">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
