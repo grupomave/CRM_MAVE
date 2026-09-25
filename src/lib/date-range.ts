@@ -5,6 +5,19 @@ export function isoDate(d: Date) {
   return d.toISOString().slice(0, 10);
 }
 
+const saoPauloDay = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/Sao_Paulo",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+// Dia (aaaa-mm-dd) no horário de Brasília — o servidor roda em UTC, então
+// iso.slice(0, 10) jogaria atividades das 21h em diante para o dia seguinte.
+export function dayKeyInSaoPaulo(value: string | Date) {
+  return saoPauloDay.format(typeof value === "string" ? new Date(value) : value);
+}
+
 export function monthKey(iso: string) {
   return iso.slice(0, 7); // YYYY-MM
 }

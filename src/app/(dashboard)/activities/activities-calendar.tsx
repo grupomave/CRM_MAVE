@@ -27,6 +27,7 @@ export interface CalendarActivity {
   done: boolean;
   deal_id: string | null;
   deal_title: string | null;
+  contact_id?: string | null;
 }
 
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -41,7 +42,8 @@ export function ActivitiesCalendar({ activities }: { activities: CalendarActivit
   const withDate = activities.filter((a) => a.due_date);
   const byDay = new Map<string, CalendarActivity[]>();
   for (const a of withDate) {
-    const key = a.due_date!.slice(0, 10);
+    // Dia no fuso do navegador (slice do ISO usaria UTC: 22h caía no dia seguinte)
+    const key = format(new Date(a.due_date!), "yyyy-MM-dd");
     if (!byDay.has(key)) byDay.set(key, []);
     byDay.get(key)!.push(a);
   }
@@ -115,8 +117,13 @@ export function ActivitiesCalendar({ activities }: { activities: CalendarActivit
                       {a.subject}
                     </span>
                   );
-                  return a.deal_id ? (
-                    <Link key={a.id} href={`/deals/${a.deal_id}`}>
+                  const href = a.deal_id
+                    ? `/deals/${a.deal_id}`
+                    : a.contact_id
+                      ? `/contacts/people/${a.contact_id}`
+                      : null;
+                  return href ? (
+                    <Link key={a.id} href={href}>
                       {content}
                     </Link>
                   ) : (
