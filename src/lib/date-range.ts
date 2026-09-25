@@ -18,8 +18,11 @@ export function dayKeyInSaoPaulo(value: string | Date) {
   return saoPauloDay.format(typeof value === "string" ? new Date(value) : value);
 }
 
+// Mês (aaaa-mm) de um timestamp no horário de Brasília. Datas sem hora
+// ("aaaa-mm-dd") são usadas como estão, sem conversão de fuso.
 export function monthKey(iso: string) {
-  return iso.slice(0, 7); // YYYY-MM
+  if (/^\d{4}-\d{2}(-\d{2})?$/.test(iso)) return iso.slice(0, 7);
+  return dayKeyInSaoPaulo(iso).slice(0, 7);
 }
 
 export function monthLabel(key: string) {
@@ -41,9 +44,21 @@ export function monthRange(fromIso: string, toIso: string) {
 
 // Janela padrão usada tanto pelos Relatórios (filtro inicial) quanto pelo
 // Dashboard (sem filtro de período próprio): últimos 12 meses até hoje.
+// Calculada no dia de Brasília: o servidor roda em UTC, e usar
+// toISOString() adiantava o período em um dia depois das 21h.
 export function defaultTwelveMonthRange(today: Date = new Date()) {
-  const defaultFrom = new Date(today);
-  defaultFrom.setMonth(defaultFrom.getMonth() - 11);
-  defaultFrom.setDate(1);
-  return { from: isoDate(defaultFrom), to: isoDate(today) };
+  const to = dayKeyInSaoPaulo(today);
+  const [year, month] = to.split("-").map(Number);
+  const start = new Date(Date.UTC(year, month - 1 - 11, 1));
+  const from = `${start.getUTCFullYear()}-${String(start.getUTCMonth() + 1).padStart(2, "0")}-01`;
+  return { from, to };
+}
+
+// Início e fim do dia de Brasília em ISO (UTC-3, sem horário de verão)
+export function saoPauloDayBounds(date: Date = new Date()) {
+  const key = dayKeyInSaoPaulo(date);
+  return {
+    start: new Date(`${key}T00:00:00-03:00`).toISOString(),
+    end: new Date(`${key}T23:59:59.999-03:00`).toISOString(),
+  };
 }

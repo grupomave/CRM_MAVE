@@ -48,10 +48,12 @@ export function StatTile({
   sub?: string;
 }) {
   return (
-    <Card>
-      <CardContent className="flex flex-col gap-1 p-5">
+    <Card className="min-w-0">
+      <CardContent className="flex flex-col gap-1 p-4">
         <span className="text-sm font-medium text-muted-foreground">{label}</span>
-        <span className="numeric text-display text-foreground">{value}</span>
+        <span className="numeric truncate text-subtitle text-foreground sm:text-title" title={value}>
+          {value}
+        </span>
         {sub && <span className="text-caption text-muted-foreground">{sub}</span>}
       </CardContent>
     </Card>

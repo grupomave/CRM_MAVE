@@ -264,7 +264,7 @@ export function LeadsList({
           {current.rows.length === 0 && (
             <TableRow className="hover:bg-transparent">
               <TableCell colSpan={8}>
-                {leads.length === 0 ? (
+                {leads.length === 0 && !hasFilters ? (
                   <EmptyState
                     icon={Inbox}
                     title="Nenhum lead na caixa de entrada"

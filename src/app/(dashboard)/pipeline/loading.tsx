@@ -3,18 +3,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function Loading() {
   return (
     <div className="flex flex-col gap-4" aria-busy="true" aria-label="Carregando o funil">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <Skeleton className="h-7 w-36" />
-        <div className="flex gap-2">
-          <Skeleton className="h-9 w-56" />
-          <Skeleton className="h-9 w-36" />
+        <div className="flex flex-wrap gap-2">
+          <Skeleton className="h-9 w-40 sm:w-56" />
+          <Skeleton className="h-9 w-32" />
         </div>
       </div>
-      <Skeleton className="h-9 w-64" />
-      <div className="flex gap-2">
-        <Skeleton className="h-9 w-72" />
+      <Skeleton className="h-9 w-56 max-w-full" />
+      <div className="flex flex-wrap gap-2">
+        <Skeleton className="h-9 w-full sm:w-72" />
+        <Skeleton className="h-9 w-32" />
         <Skeleton className="h-9 w-36" />
-        <Skeleton className="h-9 w-40" />
       </div>
       <div className="flex gap-3 overflow-hidden">
         {Array.from({ length: 6 }).map((_, col) => (

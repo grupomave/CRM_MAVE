@@ -30,6 +30,10 @@ export interface CalendarActivity {
   contact_id?: string | null;
 }
 
+function capitalizeFirst(text: string) {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 export function ActivitiesCalendar({ activities }: { activities: CalendarActivity[] }) {
@@ -64,8 +68,8 @@ export function ActivitiesCalendar({ activities }: { activities: CalendarActivit
             <ChevronRight className="size-4" />
           </Button>
         </div>
-        <span className="text-sm font-semibold capitalize text-foreground">
-          {format(month, "MMMM 'de' yyyy", { locale: ptBR })}
+        <span className="text-sm font-semibold text-foreground">
+          {capitalizeFirst(format(month, "MMMM 'de' yyyy", { locale: ptBR }))}
         </span>
       </div>
 

@@ -259,7 +259,10 @@ export function DealHeader({
             <DropdownMenuContent align="end">
               {pipelines.length > 1 && (
                 <>
-                  <DropdownMenuItem onSelect={() => setMoveTarget({ ids: [deal.id], title: deal.title })}>
+                  <DropdownMenuItem
+                    // abre depois que o menu devolve o foco ao "⋯"
+                    onSelect={() => setTimeout(() => setMoveTarget({ ids: [deal.id], title: deal.title }), 0)}
+                  >
                     <ArrowRightLeft />
                     Mover para outro funil
                   </DropdownMenuItem>

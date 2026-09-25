@@ -1,5 +1,17 @@
 import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { extendTailwindMerge } from "tailwind-merge";
+
+// O tailwind-merge precisa conhecer os tamanhos de fonte do design system
+// (globals.css). Sem isso ele trata "text-caption" como COR e, ao combinar
+// com "text-primary-foreground", descarta uma das duas (ex.: botão pequeno
+// perdia a cor do texto; badge perdia o tamanho da fonte).
+const twMerge = extendTailwindMerge({
+  extend: {
+    classGroups: {
+      "font-size": [{ text: ["micro", "caption", "body", "subtitle", "title", "display"] }],
+    },
+  },
+});
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));

@@ -65,8 +65,8 @@ function PageHeader({
   return (
     <header className={cn("flex flex-col gap-3", className)}>
       {breadcrumbs && breadcrumbs.length > 0 && <Breadcrumbs items={breadcrumbs} />}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex min-w-0 flex-col gap-1">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div className="flex min-w-0 max-w-full shrink-0 flex-col gap-1 md:max-w-1/2">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <h1 className="min-w-0 break-words text-title text-foreground">{title}</h1>
             {meta}
@@ -74,7 +74,8 @@ function PageHeader({
           {description && <p className="text-sm text-muted-foreground">{description}</p>}
         </div>
         {actions && (
-          <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">{actions}</div>
+          // As ações quebram linha em vez de estourar a largura (tablets)
+          <div className="flex min-w-0 flex-1 flex-wrap items-end gap-2 md:justify-end">{actions}</div>
         )}
       </div>
       {children}

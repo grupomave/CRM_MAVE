@@ -19,7 +19,13 @@ import {
   UserMinus,
   PlusCircle,
 } from "lucide-react";
-import { defaultTwelveMonthRange, monthKey, monthLabel, monthRange } from "@/lib/date-range";
+import {
+  defaultTwelveMonthRange,
+  monthKey,
+  monthLabel,
+  monthRange,
+  saoPauloDayBounds,
+} from "@/lib/date-range";
 import { StageFunnelChart, MonthlyTrendChart } from "@/app/(dashboard)/reports/reports-charts";
 import { DashboardFilters } from "./dashboard-filters";
 
@@ -68,12 +74,11 @@ export default async function DashboardPage({
   // Vendedor só enxerga os próprios negócios; gestor e admin têm visão geral
   // da equipe (docx "Estrutura Pipedrive" — permissões por papel).
   const isVendedor = myProfile?.role === "vendedor";
-  const firstName =
-    myProfile?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "";
+  const rawName = myProfile?.full_name?.trim() ?? "";
+  const firstName = rawName && !rawName.includes("@") ? rawName.split(" ")[0] : "";
 
   const today = new Date();
-  const todayStart = new Date(today.setHours(0, 0, 0, 0)).toISOString();
-  const todayEnd = new Date(today.setHours(23, 59, 59, 999)).toISOString();
+  const { start: todayStart, end: todayEnd } = saoPauloDayBounds(today);
 
   const { data: pipelines } = await supabase
     .from("pipelines")
@@ -210,7 +215,7 @@ export default async function DashboardPage({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title={`Olá, ${firstName}`}
+        title={firstName ? `Olá, ${firstName}` : "Olá!"}
         description={
           isVendedor
             ? "Visão dos seus negócios e atividades de hoje."
@@ -357,7 +362,7 @@ export default async function DashboardPage({
         </Card>
 
         <RelatedList
-          title="Negócios parados"
+          title={stalledAll.length > stalledDeals.length ? `Negócios parados há mais tempo (de ${stalledAll.length})` : "Negócios parados"}
           icon={Handshake}
           emptyText="Nenhum negócio parado. Bom trabalho!"
           items={stalledDeals.map((d) => ({

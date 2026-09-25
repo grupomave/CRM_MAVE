@@ -285,6 +285,11 @@ export default async function DealDetailPage({
     id: o.id,
     label: o.full_name,
   }));
+  // Dono inativo não está na lista de ativos: mantém visível como está,
+  // marcado, para ninguém achar que o negócio ficou sem responsável.
+  if (!owners.some((o) => o.id === deal.owner_id)) {
+    owners.unshift({ id: deal.owner_id, label: `${deal.profiles?.full_name ?? "Usuário"} (inativo)` });
+  }
 
   return (
     <div className="mx-auto flex w-full max-w-detail flex-col gap-5">

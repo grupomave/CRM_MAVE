@@ -18,7 +18,7 @@ function TabsList({
     <TabsPrimitive.List
       data-variant={variant}
       className={cn(
-        "group/tabs scrollbar-thin inline-flex max-w-full items-center overflow-x-auto",
+        "group/tabs scrollbar-thin inline-flex max-w-full items-center overflow-x-auto overflow-y-hidden",
         variant === "pill" && "h-9 gap-1 rounded-md bg-muted p-1",
         variant === "underline" && "h-10 w-full gap-4 border-b border-border",
         className,

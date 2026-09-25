@@ -139,6 +139,7 @@ export function PipelinesSettings({
   const [activeId, setActiveId] = useState<string | null>(null);
   const [pendingMove, setPendingMove] = useState<PendingMove | null>(null);
   const [deleting, setDeleting] = useState<SettingsStage | null>(null);
+  const deleteTrigger = useRef<HTMLElement | null>(null);
   const [newPipelineName, setNewPipelineName] = useState("");
   const [creatingPipeline, setCreatingPipeline] = useState(false);
 
@@ -287,6 +288,7 @@ export function PipelinesSettings({
   }
 
   async function requestDelete(stage: SettingsStage) {
+    deleteTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     if ((stats[stage.id]?.count ?? 0) > 0) {
       setDeleting(stage);
       return;
@@ -395,6 +397,7 @@ export function PipelinesSettings({
         columns={columns}
         stageById={stageById}
         stats={stats}
+        returnFocusRef={deleteTrigger}
         onClose={() => setDeleting(null)}
         onDeleted={() => {
           setDeleting(null);
@@ -873,9 +876,11 @@ function DeleteStageDialog({
   columns,
   stageById,
   stats,
+  returnFocusRef,
   onClose,
   onDeleted,
 }: {
+  returnFocusRef: React.RefObject<HTMLElement | null>;
   stage: SettingsStage | null;
   pipelines: SettingsPipeline[];
   columns: Columns;
@@ -906,7 +911,15 @@ function DeleteStageDialog({
 
   return (
     <Dialog open onOpenChange={(open) => !open && !busy && onClose()}>
-      <DialogContent>
+      <DialogContent
+        onCloseAutoFocus={(e) => {
+          const trigger = returnFocusRef.current;
+          if (trigger?.isConnected) {
+            e.preventDefault();
+            trigger.focus();
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Excluir a etapa “{stage.name}”</DialogTitle>
           <DialogDescription>

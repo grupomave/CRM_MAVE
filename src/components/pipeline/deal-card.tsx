@@ -166,7 +166,7 @@ function DealCardMenu({
           </DropdownMenuSubContent>
         </DropdownMenuSub>
         {onMoveToPipeline && (
-          <DropdownMenuItem onSelect={() => onMoveToPipeline(deal)}>
+          <DropdownMenuItem onSelect={() => setTimeout(() => onMoveToPipeline(deal), 0)}>
             <KanbanSquare />
             Mover para outro funil
           </DropdownMenuItem>

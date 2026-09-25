@@ -83,7 +83,7 @@ export function NewDealDialog({
 }) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = openProp ?? internalOpen;
-  const setOpen = onOpenChange ?? setInternalOpen;
+  const setOpenRaw = onOpenChange ?? setInternalOpen;
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [stages, setStages] = useState<Stage[]>([]);
   const [organizations, setOrganizations] = useState<Option[]>([]);
@@ -109,6 +109,13 @@ export function NewDealDialog({
       stage_id: defaultStageId ?? "",
     },
   });
+
+  // Fechar (Cancelar/Esc) descarta o que foi digitado: ao reabrir, o
+  // formulário começa limpo em vez de trazer o valor anterior.
+  function setOpen(next: boolean) {
+    if (!next) reset();
+    setOpenRaw(next);
+  }
 
   const selectedPipelineId = useWatch({ control, name: "pipeline_id" });
   const selectedOrganizationId = useWatch({ control, name: "organization_id" });

@@ -5,6 +5,7 @@ import { CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   dateBRToIso,
+  onlyDigits,
   formatMoneyInput,
   isoToDateBR,
   maskCEP,
@@ -84,6 +85,20 @@ export function CurrencyInput({
     }
   }
 
+  function applyDigits(digits: string) {
+    const masked = maskMoneyInput(digits);
+    setText(masked);
+    onValueChange?.(parseMoneyInput(masked));
+  }
+
+  // O cursor fica sempre no fim: os dígitos entram pela direita (centavos)
+  function caretToEnd(input: HTMLInputElement) {
+    requestAnimationFrame(() => {
+      const end = input.value.length;
+      input.setSelectionRange(end, end);
+    });
+  }
+
   return (
     <div className={cn("relative", className)}>
       <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
@@ -96,26 +111,70 @@ export function CurrencyInput({
         placeholder="0,00"
         {...props}
         value={text}
-        onChange={(e) => {
-          const masked = maskMoneyInput(e.target.value);
-          setText(masked);
-          onValueChange?.(parseMoneyInput(masked));
-        }}
-        onBlur={(e) => {
-          commit();
-          props.onBlur?.(e);
-        }}
+        // Digitação controlada no teclado: independe da posição do cursor
+        // (antes, clicar à esquerda do texto inseria dígitos no meio do
+        // valor — "1234567" virava "12.300.045,67").
         onKeyDown={(e) => {
-          if (e.key === "Enter" && onCommit) {
+          const input = e.currentTarget;
+          const digits = onlyDigits(text);
+          const allSelected =
+            input.selectionStart === 0 && input.selectionEnd === input.value.length && input.value.length > 0;
+          if (/^\d$/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) {
+            e.preventDefault();
+            applyDigits(allSelected ? e.key : digits + e.key);
+            caretToEnd(input);
+          } else if (e.key === "Backspace" || e.key === "Delete") {
+            e.preventDefault();
+            applyDigits(allSelected ? "" : digits.slice(0, -1));
+            caretToEnd(input);
+          } else if (e.key === "Enter" && onCommit) {
             e.preventDefault();
             commit();
           }
           props.onKeyDown?.(e);
         }}
+        onPaste={(e) => {
+          e.preventDefault();
+          const pasted = parsePastedMoney(e.clipboardData.getData("text"));
+          if (pasted !== null) {
+            setText(formatMoneyInput(pasted));
+            onValueChange?.(pasted);
+          }
+          caretToEnd(e.currentTarget);
+        }}
+        // Reserva para teclados virtuais que não informam a tecla
+        onChange={(e) => applyDigits(e.target.value)}
+        onFocus={(e) => {
+          caretToEnd(e.currentTarget);
+          props.onFocus?.(e);
+        }}
+        onMouseUp={(e) => {
+          if (e.currentTarget.selectionStart === e.currentTarget.selectionEnd) caretToEnd(e.currentTarget);
+          props.onMouseUp?.(e);
+        }}
+        onBlur={(e) => {
+          commit();
+          props.onBlur?.(e);
+        }}
         className={cn(fieldClasses, "numeric flex h-9 pl-9 pr-3 text-right", inputClassName)}
       />
     </div>
   );
+}
+
+// Colar "1.234,56", "1234,56", "1234.56" ou "1500" (reais inteiros)
+function parsePastedMoney(raw: string): number | null {
+  const clean = raw.replace(/[^\d.,]/g, "");
+  if (!clean) return null;
+  const lastSep = Math.max(clean.lastIndexOf(","), clean.lastIndexOf("."));
+  const decimals = lastSep >= 0 ? clean.length - lastSep - 1 : 0;
+  if (lastSep >= 0 && decimals > 0 && decimals <= 2) {
+    const int = onlyDigits(clean.slice(0, lastSep));
+    const dec = clean.slice(lastSep + 1).padEnd(2, "0");
+    return Number(`${int || "0"}.${dec}`);
+  }
+  const n = Number(onlyDigits(clean));
+  return Number.isFinite(n) ? n : null;
 }
 
 // Data dd/mm/aaaa digitável + botão que abre o calendário nativo.

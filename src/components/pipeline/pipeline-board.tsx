@@ -262,6 +262,16 @@ export function PipelineBoard({
         </Card>
       )}
 
+      {view === "kanban" && stages.length > 0 && (filters.status === "won" || filters.status === "lost") && (
+        <p className="flex flex-wrap items-center gap-2 rounded-md border border-info/30 bg-info-subtle px-3 py-2 text-sm text-info-strong">
+          O Kanban mostra só negócios em aberto. Negócios {filters.status === "won" ? "ganhos" : "perdidos"} aparecem na
+          Lista.
+          <Button variant="link" size="xs" onClick={() => setView("list")}>
+            Ver na Lista
+          </Button>
+        </p>
+      )}
+
       {view === "kanban" && stages.length > 0 && (
         <KanbanBoard
           stages={stages}
@@ -347,6 +357,10 @@ export function PipelineBoard({
   );
 }
 
+function capitalizeFirst(text: string) {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 // Previsão: negócios agrupados pelo mês previsto de fechamento
 function ForecastView({ deals }: { deals: PipelineDeal[] }) {
   const groups = new Map<string, PipelineDeal[]>();
@@ -371,10 +385,12 @@ function ForecastView({ deals }: { deals: PipelineDeal[] }) {
         const label =
           key === "sem"
             ? "Sem previsão"
-            : new Date(`${key}-15T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+            : capitalizeFirst(
+                new Date(`${key}-15T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" }),
+              );
         return (
           <Card key={key} className="flex flex-col gap-1 p-4">
-            <h3 className="text-sm font-semibold capitalize text-foreground">{label}</h3>
+            <h3 className="text-sm font-semibold text-foreground">{label}</h3>
             <p className="numeric text-subtitle text-primary">
               {formatCurrencyBRL(group.reduce((s, d) => s + d.value, 0))}
             </p>

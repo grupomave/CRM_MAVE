@@ -864,7 +864,7 @@ export default async function ReportsPage({
                 excelChartSheets={overviewChartSheets}
               />
             </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 sm:grid-cols-3 2xl:grid-cols-6">
               <StatTile label="Quentes (≤3 dias)" value={String(hot)} />
               <StatTile label="Mornos (4–10 dias)" value={String(warm)} />
               <StatTile label="Frios (11+ dias)" value={String(cold)} />

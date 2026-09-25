@@ -103,6 +103,7 @@ export function Combobox({
             value={query}
             onValueChange={setQuery}
             placeholder={searchPlaceholder}
+            aria-label={searchPlaceholder}
             className="h-10 w-full border-b border-border bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground"
           />
           <Command.List id={listId} className="scrollbar-thin max-h-64 overflow-y-auto p-1">

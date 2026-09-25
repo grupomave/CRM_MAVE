@@ -90,7 +90,7 @@ export function DealsTable({
             <SortableHead sortKey="value" sort={filters.sort} onSort={onSort} align="right" defaultDir="desc">
               Valor
             </SortableHead>
-            <SortableHead sortKey="expected_close" sort={filters.sort} onSort={onSort}>
+            <SortableHead sortKey="expected_close" sort={filters.sort} onSort={onSort} className="hidden 2xl:table-cell">
               Previsão
             </SortableHead>
             <SortableHead sortKey="owner" sort={filters.sort} onSort={onSort}>
@@ -123,7 +123,9 @@ export function DealsTable({
                     <span className="block text-caption font-normal text-muted-foreground">{d.contact_name}</span>
                   )}
                 </TableCell>
-                <TableCell className="text-muted-foreground">{d.organization_name ?? "—"}</TableCell>
+                <TableCell className="max-w-48 truncate text-muted-foreground" title={d.organization_name ?? undefined}>
+                  {d.organization_name ?? "—"}
+                </TableCell>
                 <TableCell className="whitespace-nowrap text-muted-foreground">
                   {stageName.get(d.stage_id) ?? "—"}
                 </TableCell>
@@ -133,7 +135,7 @@ export function DealsTable({
                 <TableCell numeric className="font-medium">
                   {formatCurrencyBRL(d.value)}
                 </TableCell>
-                <TableCell className="numeric whitespace-nowrap text-muted-foreground">
+                <TableCell className="numeric hidden whitespace-nowrap text-muted-foreground 2xl:table-cell">
                   {d.expected_close_date ? formatDate(`${d.expected_close_date}T12:00:00`) : "—"}
                 </TableCell>
                 <TableCell>
