@@ -1,6 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { listUsersForAdmin, type AdminUserRow } from "@/lib/actions/users";
 import { SettingsTabs } from "./settings-tabs";
+import { PageHeader } from "@/components/ui/page-header";
+
+export const metadata = { title: "Configurações" };
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -44,12 +47,10 @@ export default async function SettingsPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">Configurações</h1>
-        <p className="text-sm text-muted-foreground">
-          Usuários e permissões, pipelines e campos customizados
-        </p>
-      </div>
+      <PageHeader
+        title="Configurações"
+        description="Usuários e permissões, pipelines e campos customizados"
+      />
 
       {!isAdmin && (
         <p className="rounded-md border border-border bg-muted p-3 text-sm text-muted-foreground">

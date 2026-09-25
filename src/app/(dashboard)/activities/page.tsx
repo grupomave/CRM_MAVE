@@ -6,6 +6,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ActivitiesToolbar } from "./activities-toolbar";
 import { ActivityDoneToggle } from "./activity-done-toggle";
 import { ActivitiesCalendar } from "./activities-calendar";
+import { PageHeader } from "@/components/ui/page-header";
+
+export const metadata = { title: "Atividades" };
 
 const TYPE_LABEL: Record<string, string> = {
   task: "Tarefa",
@@ -45,17 +48,11 @@ export default async function ActivitiesPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">
-            Atividades / Agenda
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Tarefas, ligações, reuniões e e-mails
-          </p>
-        </div>
-        <ActivitiesToolbar />
-      </div>
+      <PageHeader
+        title="Atividades"
+        description="Tarefas, ligações, reuniões e e-mails"
+        actions={<ActivitiesToolbar />}
+      />
 
       <div className="grid grid-cols-2 gap-3 sm:w-96">
         <Card>

@@ -24,6 +24,9 @@ import { OwnerPipelineTable, SourcePipelineChart, StagnantDealsTable } from "./r
 import { CustomerSalesTable, RegionSalesChart } from "./reports-sales";
 import { LeadsStatusChart, LeadsSourceTable } from "./reports-leads";
 import { OverdueActivitiesTable, ExpiringDealsTable } from "./reports-alerts";
+import { PageHeader } from "@/components/ui/page-header";
+
+export const metadata = { title: "Relatórios" };
 
 interface DealRow {
   id: string;
@@ -796,14 +799,11 @@ export default async function ReportsPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">Relatórios / Insights</h1>
-          <p className="text-sm text-muted-foreground">
-            Funil, evolução, perdas e desempenho por vendedor
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
+      <PageHeader
+        title="Relatórios"
+        description="Funil, evolução, perdas e desempenho por vendedor"
+        actions={
+          <>
           <ReportsFilters
             pipelines={pipelines ?? []}
             owners={owners.map((o) => ({ id: o.id, name: o.full_name }))}
@@ -821,8 +821,9 @@ export default async function ReportsPage({
             pdfSections={generalPdfSections}
             excelChartSheets={generalChartSheets}
           />
-        </div>
-      </div>
+          </>
+        }
+      />
 
       <ExportChartsBasket
         funnelData={funnelData}

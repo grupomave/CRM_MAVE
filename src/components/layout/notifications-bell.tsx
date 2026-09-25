@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell } from "lucide-react";
+import { Bell, BellOff } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/lib/supabase/types";
 
@@ -72,21 +73,22 @@ export function NotificationsBell({ userId }: { userId: string }) {
 
   return (
     <DropdownMenu onOpenChange={(open) => open && unreadCount > 0 && markAllRead()}>
-      <DropdownMenuTrigger className="relative rounded-md p-2 outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring">
+      <DropdownMenuTrigger
+        aria-label={unreadCount > 0 ? `Notificações (${unreadCount} não lidas)` : "Notificações"}
+        className="relative flex size-9 items-center justify-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+      >
         <Bell className="size-4" />
         {unreadCount > 0 && (
-          <span className="absolute right-1 top-1 flex size-4 items-center justify-center rounded-full bg-destructive text-micro text-destructive-foreground">
+          <span className="numeric absolute right-1 top-1 flex min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-micro font-semibold leading-4 text-destructive-foreground">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80">
+      <DropdownMenuContent align="end" className="w-[min(20rem,calc(100vw-2rem))]">
         <DropdownMenuLabel>Notificações</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {notifications.length === 0 && (
-          <p className="px-2 py-4 text-center text-sm text-muted-foreground">
-            Nenhuma notificação por aqui.
-          </p>
+          <EmptyState icon={BellOff} title="Nenhuma notificação por aqui" compact />
         )}
         {notifications.map((n) => (
           <DropdownMenuItem key={n.id} className="flex-col items-start gap-0.5">
@@ -94,7 +96,7 @@ export function NotificationsBell({ userId }: { userId: string }) {
               <span className="truncate text-sm">{n.message}</span>
               {!n.read && <Badge>novo</Badge>}
             </div>
-            <span className="text-xs text-muted-foreground">
+            <span className="text-caption text-muted-foreground">
               {new Date(n.created_at).toLocaleString("pt-BR")}
             </span>
           </DropdownMenuItem>

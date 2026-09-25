@@ -1,6 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { DocumentsList, type DocumentRow } from "./documents-list";
+import { PageHeader } from "@/components/ui/page-header";
+
+export const metadata = { title: "Documentos" };
 
 export default async function DocumentsPage() {
   const supabase = await createClient();
@@ -58,12 +61,10 @@ export default async function DocumentsPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">Documentos</h1>
-        <p className="text-sm text-muted-foreground">
-          Repositório central de arquivos de negócios, contatos e organizações
-        </p>
-      </div>
+      <PageHeader
+        title="Documentos"
+        description="Repositório central de arquivos de negócios, contatos e organizações"
+      />
 
       <DocumentsList documents={documents} />
     </div>

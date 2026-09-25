@@ -1,6 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { LeadsToolbar } from "./leads-toolbar";
 import { LeadsList } from "./leads-list";
+import { PageHeader } from "@/components/ui/page-header";
+
+export const metadata = { title: "Leads" };
 
 export default async function LeadsPage() {
   const supabase = await createClient();
@@ -11,15 +14,11 @@ export default async function LeadsPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">Leads</h1>
-          <p className="text-sm text-muted-foreground">
-            Caixa de entrada de leads não qualificados
-          </p>
-        </div>
-        <LeadsToolbar />
-      </div>
+      <PageHeader
+        title="Leads"
+        description="Caixa de entrada de leads não qualificados"
+        actions={<LeadsToolbar />}
+      />
 
       <LeadsList leads={leads ?? []} />
     </div>

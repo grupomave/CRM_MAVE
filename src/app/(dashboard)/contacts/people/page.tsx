@@ -2,6 +2,9 @@ import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { PeopleToolbar } from "./people-toolbar";
 import { PeopleList, type PersonRow } from "./people-list";
+import { PageHeader } from "@/components/ui/page-header";
+
+export const metadata = { title: "Pessoas" };
 
 export default async function PeoplePage() {
   const supabase = await createClient();
@@ -15,13 +18,11 @@ export default async function PeoplePage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">Pessoas</h1>
-          <p className="text-sm text-muted-foreground">Contatos individuais</p>
-        </div>
-        <PeopleToolbar />
-      </div>
+      <PageHeader
+        title="Pessoas"
+        description="Contatos individuais"
+        actions={<PeopleToolbar />}
+      />
 
       <PeopleList contacts={contacts ?? []} />
     </div>

@@ -26,17 +26,20 @@ export function UserMenu({
 }) {
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring">
+      <DropdownMenuTrigger
+        aria-label="Menu do usuário"
+        className="ml-1 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      >
         <Avatar>
           {avatarUrl && <AvatarImage src={avatarUrl} alt={fullName} />}
           <AvatarFallback>{initials(fullName || email)}</AvatarFallback>
         </Avatar>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent align="end" className="w-60">
         <DropdownMenuLabel>
           <div className="flex flex-col">
-            <span className="font-medium text-foreground">{fullName}</span>
-            <span className="text-xs font-normal text-muted-foreground">
+            <span className="truncate text-sm font-medium text-foreground">{fullName}</span>
+            <span className="truncate text-caption font-normal text-muted-foreground">
               {email}
             </span>
           </div>
@@ -44,7 +47,7 @@ export function UserMenu({
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
           <Link href="/settings/profile">
-            <UserIcon className="size-4" />
+            <UserIcon />
             Perfil
           </Link>
         </DropdownMenuItem>
@@ -54,7 +57,7 @@ export function UserMenu({
         <form action={signOutAction}>
           <DropdownMenuItem asChild variant="destructive">
             <button type="submit" className="w-full">
-              <LogOut className="size-4" />
+              <LogOut />
               Sair
             </button>
           </DropdownMenuItem>

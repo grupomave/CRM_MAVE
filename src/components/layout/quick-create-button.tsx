@@ -28,21 +28,22 @@ export function QuickCreateButton() {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button size="icon" aria-label="Criação rápida">
+          <Button size="sm" className="h-9 px-2.5 sm:px-3" aria-label="Criar">
             <Plus />
+            <span className="hidden sm:inline">Criar</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onSelect={() => setActiveDialog("deal")}>
-            <Handshake className="size-4" />
+            <Handshake />
             Novo negócio
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setActiveDialog("contact")}>
-            <UserPlus className="size-4" />
+            <UserPlus />
             Novo contato
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setActiveDialog("activity")}>
-            <CalendarPlus className="size-4" />
+            <CalendarPlus />
             Nova atividade
           </DropdownMenuItem>
         </DropdownMenuContent>

@@ -7,6 +7,7 @@ import { formatCurrencyBRL } from "@/lib/utils";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { ContactDetailForm } from "./contact-detail-form";
 import { EntityFilesTab } from "@/components/entity-files-tab";
+import { PageHeader } from "@/components/ui/page-header";
 
 const DEAL_STATUS_LABEL: Record<string, string> = {
   open: "Aberto",
@@ -59,10 +60,10 @@ export default async function ContactDetailPage({
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">{contact.name}</h1>
-        <p className="text-sm text-muted-foreground">Contato</p>
-      </div>
+      <PageHeader
+        title={contact.name}
+        breadcrumbs={[{ label: "Pessoas", href: "/contacts/people" }, { label: contact.name }]}
+      />
 
       <ContactDetailForm
         contact={contact as any}

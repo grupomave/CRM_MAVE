@@ -20,6 +20,9 @@ import {
 import { defaultTwelveMonthRange, monthKey, monthLabel, monthRange } from "@/lib/date-range";
 import { StageFunnelChart, MonthlyTrendChart } from "@/app/(dashboard)/reports/reports-charts";
 import { DashboardFilters } from "./dashboard-filters";
+import { PageHeader } from "@/components/ui/page-header";
+
+export const metadata = { title: "Dashboard" };
 
 interface DealRow {
   id: string;
@@ -48,13 +51,15 @@ export default async function DashboardPage({
 
   const { data: myProfile } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role, full_name")
     .eq("id", user?.id ?? "")
     .single();
 
   // Vendedor só enxerga os próprios negócios; gestor e admin têm visão geral
   // da equipe (docx "Estrutura Pipedrive" — permissões por papel).
   const isVendedor = myProfile?.role === "vendedor";
+  const firstName =
+    myProfile?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "";
 
   const today = new Date();
   const todayStart = new Date(today.setHours(0, 0, 0, 0)).toISOString();
@@ -172,24 +177,22 @@ export default async function DashboardPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">
-            Olá, {user?.email?.split("@")[0]}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {isVendedor
-              ? "Visão dos seus negócios e atividades de hoje."
-              : "Visão geral do funil de toda a equipe."}
-          </p>
-        </div>
-        <DashboardFilters
-          pipelines={pipelines ?? []}
-          pipelineId={pipelineId ?? ""}
-          from={fromParam}
-          to={toParam}
-        />
-      </div>
+      <PageHeader
+        title={`Olá, ${firstName}`}
+        description={
+          isVendedor
+            ? "Visão dos seus negócios e atividades de hoje."
+            : "Visão geral do funil de toda a equipe."
+        }
+        actions={
+          <DashboardFilters
+            pipelines={pipelines ?? []}
+            pipelineId={pipelineId ?? ""}
+            from={fromParam}
+            to={toParam}
+          />
+        }
+      />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>

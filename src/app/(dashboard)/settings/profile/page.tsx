@@ -1,5 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { ProfileForm } from "./profile-form";
+import { PageHeader } from "@/components/ui/page-header";
+
+export const metadata = { title: "Meu perfil" };
 
 export default async function ProfilePage() {
   const supabase = await createClient();
@@ -14,11 +17,12 @@ export default async function ProfilePage() {
     .single();
 
   return (
-    <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">Meu perfil</h1>
-        <p className="text-sm text-muted-foreground">{user?.email}</p>
-      </div>
+    <div className="mx-auto flex w-full max-w-form flex-col gap-6">
+      <PageHeader
+        title="Meu perfil"
+        description={user?.email}
+        breadcrumbs={[{ label: "Configurações", href: "/settings" }, { label: "Meu perfil" }]}
+      />
       <ProfileForm
         fullName={profile?.full_name ?? ""}
         role={profile?.role ?? "vendedor"}

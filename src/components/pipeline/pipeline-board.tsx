@@ -12,9 +12,10 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { ChevronLeft, ChevronRight, KanbanSquare, List, TrendingUp } from "lucide-react";
+import { ChevronLeft, ChevronRight, KanbanSquare, List, Plus, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/ui/page-header";
 import { NewDealDialog } from "@/components/forms/new-deal-dialog";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrencyBRL, cn } from "@/lib/utils";
@@ -211,7 +212,25 @@ export function PipelineBoard({
 
   return (
     <div className="flex h-full flex-col gap-4">
-      <PipelineSwitcher pipelines={pipelines} selectedPipelineId={selectedPipelineId} />
+      <PageHeader
+        title="Negócios"
+        actions={
+          <>
+            <PipelineSwitcher pipelines={pipelines} selectedPipelineId={selectedPipelineId} />
+            <NewDealDialog
+              trigger={
+                <Button>
+                  <Plus />
+                  Novo negócio
+                </Button>
+              }
+              pipelineId={selectedPipelineId ?? undefined}
+              defaultStageId={stages[0]?.id}
+              onCreated={() => window.location.reload()}
+            />
+          </>
+        }
+      />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-1 rounded-md bg-muted p-1">
@@ -222,17 +241,8 @@ export function PipelineBoard({
             Lista
           </ViewButton>
           <ViewButton icon={TrendingUp} active={view === "forecast"} onClick={() => setView("forecast")}>
-            Fluxo
+            Previsão
           </ViewButton>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <NewDealDialog
-            trigger={<Button>Novo negócio</Button>}
-            pipelineId={selectedPipelineId ?? undefined}
-            defaultStageId={stages[0]?.id}
-            onCreated={() => window.location.reload()}
-          />
         </div>
       </div>
 

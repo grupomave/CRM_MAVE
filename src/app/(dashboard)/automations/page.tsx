@@ -1,6 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { AutomationsToolbar } from "./automations-toolbar";
 import { AutomationRuleRow } from "./automation-rule-row";
+import { PageHeader } from "@/components/ui/page-header";
+
+export const metadata = { title: "Automações" };
 
 const TRIGGER_LABEL: Record<string, string> = {
   deal_stage_changed: "Negócio muda de estágio",
@@ -23,15 +26,11 @@ export default async function AutomationsPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">Automações</h1>
-          <p className="text-sm text-muted-foreground">
-            Regras &quot;quando X acontece, faça Y&quot;
-          </p>
-        </div>
-        <AutomationsToolbar />
-      </div>
+      <PageHeader
+        title="Automações"
+        description="Regras “quando X acontece, faça Y”"
+        actions={<AutomationsToolbar />}
+      />
 
       <div className="flex flex-col gap-2">
         {(rulesRes.data ?? []).map((rule) => (

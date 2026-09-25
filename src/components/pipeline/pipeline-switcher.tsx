@@ -32,7 +32,7 @@ export function PipelineSwitcher({
       value={selectedPipelineId ?? undefined}
       onValueChange={(value) => router.push(`/pipeline?pipeline=${value}`)}
     >
-      <SelectTrigger className="w-56">
+      <SelectTrigger className="w-56" aria-label="Funil">
         <SelectValue placeholder="Selecione o funil" />
       </SelectTrigger>
       <SelectContent>

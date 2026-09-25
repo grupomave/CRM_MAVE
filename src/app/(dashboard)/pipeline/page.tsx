@@ -4,6 +4,8 @@ import { computeDealAlerts } from "@/lib/deal-alerts";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import type { OwnerOption, PipelineDeal, PipelineStage } from "@/components/pipeline/types";
 
+export const metadata = { title: "Negócios" };
+
 interface RawDealRow {
   id: string;
   title: string;

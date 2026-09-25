@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { LeadDetailForm } from "./lead-detail-form";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default async function LeadDetailPage({
   params,
@@ -24,11 +25,11 @@ export default async function LeadDetailPage({
     .order("name");
 
   return (
-    <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">{lead.name}</h1>
-        <p className="text-sm text-muted-foreground">Lead</p>
-      </div>
+    <div className="mx-auto flex w-full max-w-detail flex-col gap-6">
+      <PageHeader
+        title={lead.name}
+        breadcrumbs={[{ label: "Leads", href: "/leads" }, { label: lead.name }]}
+      />
 
       <LeadDetailForm lead={lead as any} pipelines={pipelines ?? []} />
     </div>

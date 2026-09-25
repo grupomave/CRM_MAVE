@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatCurrencyBRL } from "@/lib/utils";
 import { OrganizationDetailForm } from "./organization-detail-form";
 import { EntityFilesTab } from "@/components/entity-files-tab";
+import { PageHeader } from "@/components/ui/page-header";
 
 const DEAL_STATUS_LABEL: Record<string, string> = {
   open: "Aberto",
@@ -60,10 +61,13 @@ export default async function OrganizationDetailPage({
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">{organization.name}</h1>
-        <p className="text-sm text-muted-foreground">Organização</p>
-      </div>
+      <PageHeader
+        title={organization.name}
+        breadcrumbs={[
+          { label: "Organizações", href: "/contacts/organizations" },
+          { label: organization.name },
+        ]}
+      />
 
       <OrganizationDetailForm organization={organization as any} canDelete={canDelete} />
 

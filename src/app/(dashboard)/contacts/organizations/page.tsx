@@ -2,6 +2,9 @@ import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { OrganizationsToolbar } from "./organizations-toolbar";
 import { OrganizationsList, type OrganizationRow } from "./organizations-list";
+import { PageHeader } from "@/components/ui/page-header";
+
+export const metadata = { title: "Organizações" };
 
 interface OrganizationBase {
   id: string;
@@ -89,13 +92,11 @@ export default async function OrganizationsPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">Organizações</h1>
-          <p className="text-sm text-muted-foreground">Empresas clientes e prospects</p>
-        </div>
-        <OrganizationsToolbar />
-      </div>
+      <PageHeader
+        title="Organizações"
+        description="Empresas clientes e prospects"
+        actions={<OrganizationsToolbar />}
+      />
 
       <OrganizationsList organizations={rows} />
     </div>
