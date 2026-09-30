@@ -5,7 +5,13 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { AppointmentAlert } from "@/components/appointment-alert";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { SIDEBAR_COOKIE } from "@/lib/nav";
+import {
+  SIDEBAR_COOKIE,
+  SIDEBAR_WIDTH_COOKIE,
+  SIDEBAR_WIDTH_DEFAULT,
+  SIDEBAR_WIDTH_MAX,
+  SIDEBAR_WIDTH_MIN,
+} from "@/lib/nav";
 
 export default async function DashboardLayout({
   children,
@@ -31,6 +37,10 @@ export default async function DashboardLayout({
   ]);
 
   const sidebarCollapsed = cookieStore.get(SIDEBAR_COOKIE)?.value === "collapsed";
+  const savedWidth = Number(cookieStore.get(SIDEBAR_WIDTH_COOKIE)?.value);
+  const sidebarWidth = Number.isFinite(savedWidth) && savedWidth > 0
+    ? Math.min(SIDEBAR_WIDTH_MAX, Math.max(SIDEBAR_WIDTH_MIN, savedWidth))
+    : SIDEBAR_WIDTH_DEFAULT;
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -41,7 +51,7 @@ export default async function DashboardLayout({
         Pular para o conteúdo
       </a>
       <div className="flex min-h-dvh">
-        <Sidebar initialCollapsed={sidebarCollapsed} />
+        <Sidebar initialCollapsed={sidebarCollapsed} initialWidth={sidebarWidth} />
         <div className="flex min-w-0 flex-1 flex-col">
           <Header
             userId={user.id}

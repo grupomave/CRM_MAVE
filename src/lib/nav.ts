@@ -67,6 +67,11 @@ export const NAV_ITEMS: NavItem[] = [
 ];
 
 export const SIDEBAR_COOKIE = "mave-sidebar";
+// Largura do menu expandido (px), ajustável arrastando a borda
+export const SIDEBAR_WIDTH_COOKIE = "mave-sidebar-width";
+export const SIDEBAR_WIDTH_MIN = 200;
+export const SIDEBAR_WIDTH_MAX = 380;
+export const SIDEBAR_WIDTH_DEFAULT = 240;
 
 export function isNavItemActive(pathname: string, href: string) {
   // /deals/[id] pertence ao módulo Negócios (/pipeline)
