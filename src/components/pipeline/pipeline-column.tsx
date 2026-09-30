@@ -9,8 +9,6 @@ import type { KanbanDensity } from "@/lib/preferences";
 import { DealCard } from "./deal-card";
 import type { PipelineDeal, PipelineStage } from "./types";
 
-export const PAGE_STEP = 30;
-
 const compactBRL = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",
@@ -24,12 +22,10 @@ export function PipelineColumn({
   deals,
   density,
   collapsed,
-  visibleCount,
   activeFromStageId,
   fullWidth = false,
   dragDisabled = false,
   onToggleCollapse,
-  onShowMore,
   onCreate,
   onMove,
   onMoveToPipeline,
@@ -39,13 +35,11 @@ export function PipelineColumn({
   deals: PipelineDeal[];
   density: KanbanDensity;
   collapsed: boolean;
-  visibleCount: number;
   /** Etapa de origem do card sendo arrastado (para o placeholder) */
   activeFromStageId: string | null;
   fullWidth?: boolean;
   dragDisabled?: boolean;
   onToggleCollapse?: () => void;
-  onShowMore: () => void;
   onCreate: () => void;
   onMove: (dealId: string, stageId: string) => void;
   onMoveToPipeline?: (deal: PipelineDeal) => void;
@@ -54,8 +48,7 @@ export function PipelineColumn({
   const total = deals.reduce((sum, d) => sum + d.value, 0);
   const alertCount = deals.filter((d) => d.overdue_days || d.no_upcoming_activity || d.is_stagnant).length;
   const isDropTarget = isOver && activeFromStageId !== null && activeFromStageId !== stage.id;
-  const visible = deals.slice(0, visibleCount);
-  const remaining = deals.length - visible.length;
+  const compact = density === "compact";
 
   if (collapsed) {
     return (
@@ -63,7 +56,7 @@ export function PipelineColumn({
         ref={setNodeRef}
         aria-label={`Etapa ${stage.name} (recolhida), ${deals.length} negócios`}
         className={cn(
-          "flex h-full w-11 shrink-0 flex-col items-center gap-3 rounded-lg border border-border bg-muted/50 py-2 transition-colors",
+          "flex w-11 shrink-0 flex-col items-center gap-3 rounded-lg border border-border bg-muted/50 py-2 transition-colors",
           isDropTarget && "border-primary bg-primary-subtle ring-2 ring-primary/30",
         )}
       >
@@ -85,13 +78,19 @@ export function PipelineColumn({
       ref={setNodeRef}
       aria-label={`Etapa ${stage.name}, ${deals.length} negócios`}
       className={cn(
-        "flex min-h-0 shrink-0 flex-col rounded-lg border border-border bg-muted/50 transition-[border-color,background-color,box-shadow]",
-        fullWidth ? "w-full" : density === "compact" ? "h-full w-64" : "h-full w-72",
+        "flex shrink-0 flex-col rounded-lg border border-border bg-muted/50 transition-[border-color,background-color,box-shadow]",
+        fullWidth ? "w-full" : compact ? "w-48" : "w-72",
         isDropTarget && "border-primary bg-primary-subtle/60 ring-2 ring-primary/30",
       )}
     >
-      {/* Cabeçalho fixo: fica fora da área que rola */}
-      <header className="flex shrink-0 flex-col gap-0.5 border-b border-border px-3 pb-2 pt-2.5">
+      {/* Roda do mouse sobre o cabeçalho rola o quadro na horizontal */}
+      <header
+        data-wheel-x
+        className={cn(
+          "flex shrink-0 flex-col gap-0.5 border-b border-border",
+          compact ? "px-2 pb-1.5 pt-2" : "px-3 pb-2 pt-2.5",
+        )}
+      >
         <div className="flex items-center gap-1.5">
           <h3 className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground" title={stage.name}>
             {stage.name}
@@ -119,18 +118,14 @@ export function PipelineColumn({
           </SimpleTooltip>
           {alertCount > 0 && (
             <span className="numeric text-micro font-medium text-destructive">
-              {alertCount} com alerta
+              {compact ? `${alertCount} ${alertCount === 1 ? "alerta" : "alertas"}` : `${alertCount} com alerta`}
             </span>
           )}
         </div>
       </header>
 
-      <div
-        className={cn(
-          "scrollbar-thin flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2",
-          fullWidth && "overflow-visible",
-        )}
-      >
+      {/* Sem rolagem própria: a coluna cresce e a página rola na vertical */}
+      <div className={cn("flex flex-1 flex-col", compact ? "gap-1.5 p-1.5" : "gap-2 p-2")}>
         {isDropTarget && (
           <div
             aria-hidden
@@ -139,7 +134,7 @@ export function PipelineColumn({
             Soltar aqui
           </div>
         )}
-        {visible.map((deal) => (
+        {deals.map((deal) => (
           <DealCard
             key={deal.id}
             deal={deal}
@@ -150,11 +145,6 @@ export function PipelineColumn({
             dragDisabled={dragDisabled}
           />
         ))}
-        {remaining > 0 && (
-          <Button variant="ghost" size="sm" className="shrink-0 text-muted-foreground" onClick={onShowMore}>
-            Mostrar mais {Math.min(remaining, PAGE_STEP)} de {remaining}
-          </Button>
-        )}
         {deals.length === 0 && !isDropTarget && (
           <div className="flex flex-col items-center gap-2 px-2 py-6 text-center">
             <p className="text-caption text-muted-foreground">Nenhum negócio nesta etapa</p>

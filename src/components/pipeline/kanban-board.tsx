@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -20,7 +20,7 @@ import { cn, formatCurrencyBRL } from "@/lib/utils";
 import { useMediaQuery } from "@/lib/use-media-query";
 import type { KanbanDensity } from "@/lib/preferences";
 import { DealCardOverlay } from "./deal-card";
-import { PAGE_STEP, PipelineColumn } from "./pipeline-column";
+import { PipelineColumn } from "./pipeline-column";
 import type { PipelineDeal, PipelineStage } from "./types";
 
 // Teclado: com o card "pego" (Espaço), ← e → saltam direto para o centro
@@ -69,9 +69,10 @@ export function KanbanBoard({
 }) {
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const [activeDealId, setActiveDealId] = useState<string | null>(null);
-  const [visibleCount, setVisibleCount] = useState<Record<string, number>>({});
   const [mobileStageId, setMobileStageId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const railRef = useRef<HTMLDivElement>(null);
+  const [scrollWidth, setScrollWidth] = useState(0);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
 
   const sensors = useSensors(
@@ -112,8 +113,58 @@ export function KanbanBoard({
     onMove(String(event.active.id), String(event.over.id));
   }
 
-  const showMore = (stageId: string) =>
-    setVisibleCount((prev) => ({ ...prev, [stageId]: (prev[stageId] ?? PAGE_STEP) + PAGE_STEP }));
+  // Rolagem horizontal do quadro: a página rola na vertical, então a barra
+  // horizontal fica fixa no rodapé da tela (railRef) e acompanha o quadro.
+  useEffect(() => {
+    const board = scrollRef.current;
+    const rail = railRef.current;
+    if (!board || !rail || !isDesktop) return;
+
+    const measure = () => setScrollWidth(board.scrollWidth);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(board);
+    Array.from(board.children).forEach((child) => observer.observe(child));
+
+    let syncing = false;
+    const sync = (from: HTMLElement, to: HTMLElement) => () => {
+      if (syncing) {
+        syncing = false;
+        return;
+      }
+      if (to.scrollLeft !== from.scrollLeft) {
+        syncing = true;
+        to.scrollLeft = from.scrollLeft;
+      }
+    };
+    const boardToRail = sync(board, rail);
+    const railToBoard = sync(rail, board);
+    board.addEventListener("scroll", boardToRail, { passive: true });
+    rail.addEventListener("scroll", railToBoard, { passive: true });
+
+    // Roda do mouse sobre o cabeçalho das etapas ou a barra inferior rola na
+    // horizontal; Shift+roda e gestos de trackpad já funcionam nativamente.
+    const onWheel = (e: WheelEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target?.closest("[data-wheel-x]")) return;
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      const max = board.scrollWidth - board.clientWidth;
+      const next = Math.min(max, Math.max(0, board.scrollLeft + e.deltaY));
+      if (next === board.scrollLeft) return;
+      e.preventDefault();
+      board.scrollLeft = next;
+    };
+    board.addEventListener("wheel", onWheel, { passive: false });
+    rail.addEventListener("wheel", onWheel, { passive: false });
+
+    return () => {
+      observer.disconnect();
+      board.removeEventListener("scroll", boardToRail);
+      rail.removeEventListener("scroll", railToBoard);
+      board.removeEventListener("wheel", onWheel);
+      rail.removeEventListener("wheel", onWheel);
+    };
+  }, [isDesktop, stages.length, collapsedIds, density]);
 
   // ---------- Mobile: uma etapa por vez ----------
   if (!isDesktop) {
@@ -195,11 +246,9 @@ export function KanbanBoard({
               deals={dealsByStage.get(current.id) ?? []}
               density={density}
               collapsed={false}
-              visibleCount={visibleCount[current.id] ?? PAGE_STEP}
               activeFromStageId={null}
               fullWidth
               dragDisabled
-              onShowMore={() => showMore(current.id)}
               onCreate={() => onCreate(current.id)}
               onMove={onMove}
               onMoveToPipeline={onMoveToPipeline}
@@ -228,7 +277,7 @@ export function KanbanBoard({
         },
       }}
     >
-      <div className="relative flex min-h-0 flex-1 flex-col gap-2">
+      <div className="relative flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
           <p className="numeric text-caption text-muted-foreground">
             {deals.length} {deals.length === 1 ? "negócio em aberto" : "negócios em aberto"} ·{" "}
@@ -255,7 +304,11 @@ export function KanbanBoard({
         </div>
         <div
           ref={scrollRef}
-          className="scrollbar-thin flex min-h-0 flex-1 gap-2.5 overflow-x-auto overscroll-x-contain pb-2 motion-safe:scroll-smooth"
+          className={cn(
+            // A barra nativa fica escondida: a barra fixa no rodapé faz esse papel
+            "flex items-stretch overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+            density === "compact" ? "gap-2" : "gap-2.5",
+          )}
         >
           {stages.map((stage) => (
             <PipelineColumn
@@ -265,20 +318,27 @@ export function KanbanBoard({
               deals={dealsByStage.get(stage.id) ?? []}
               density={density}
               collapsed={collapsedIds.has(stage.id)}
-              visibleCount={visibleCount[stage.id] ?? PAGE_STEP}
               activeFromStageId={activeDeal?.stage_id ?? null}
               onToggleCollapse={() => onToggleCollapse(stage.id)}
-              onShowMore={() => showMore(stage.id)}
               onCreate={() => onCreate(stage.id)}
               onMove={onMove}
               onMoveToPipeline={onMoveToPipeline}
             />
           ))}
         </div>
+        {/* Barra de rolagem horizontal sempre visível no rodapé da tela */}
+        <div
+          ref={railRef}
+          data-wheel-x
+          aria-hidden
+          className="scrollbar-thin sticky bottom-0 z-20 overflow-x-auto overflow-y-hidden rounded-md bg-background/90 py-1 backdrop-blur"
+        >
+          <div style={{ width: scrollWidth, height: 1 }} />
+        </div>
       </div>
       <DragOverlay dropAnimation={{ duration: 180, easing: "cubic-bezier(0.2, 0, 0, 1)" }}>
         {activeDeal ? (
-          <div className={density === "compact" ? "w-60" : "w-68"}>
+          <div className={density === "compact" ? "w-48" : "w-68"}>
             <DealCardOverlay deal={activeDeal} density={density} stages={stages} />
           </div>
         ) : null}

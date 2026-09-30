@@ -16,6 +16,19 @@ const MUST_CHANGE_PASSWORD_CACHE_COOKIE = "mcp_ok";
 const MUST_CHANGE_PASSWORD_CACHE_SECONDS = 300;
 
 export async function updateSession(request: NextRequest) {
+  // Se o Supabase rejeitar o redirectTo (URL fora da allowlist), ele manda o
+  // link de e-mail para a Site URL pura: "/?code=...". Encaminha esse code
+  // para o callback, que troca por sessão e leva à troca de senha.
+  const code = request.nextUrl.searchParams.get("code");
+  if (code && request.nextUrl.pathname === "/") {
+    const callbackUrl = request.nextUrl.clone();
+    callbackUrl.pathname = "/auth/callback";
+    callbackUrl.search = "";
+    callbackUrl.searchParams.set("code", code);
+    callbackUrl.searchParams.set("next", "/change-password");
+    return NextResponse.redirect(callbackUrl);
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(

@@ -199,13 +199,7 @@ export function PipelineBoard({
   );
 
   return (
-    <div
-      className={cn(
-        "flex flex-col gap-4",
-        // No desktop o Kanban ocupa a altura da janela e cada coluna rola sozinha
-        view === "kanban" && "md:h-[calc(100dvh-6.5rem)]",
-      )}
-    >
+    <div className="flex flex-col gap-4">
       <PageHeader
         title="Negócios"
         actions={

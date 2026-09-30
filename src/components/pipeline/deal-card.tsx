@@ -134,7 +134,7 @@ function DealCardMenu({
           // Não inicia arraste ao abrir o menu
           onPointerDown={(e) => e.stopPropagation()}
           onKeyDown={(e) => e.stopPropagation()}
-          className="-mr-1 -mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-opacity hover:bg-muted hover:text-foreground focus-visible:opacity-100 data-[state=open]:opacity-100 md:opacity-0 md:group-hover/card:opacity-100"
+          className="-mr-1 -mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-opacity hover:bg-muted hover:text-foreground focus-visible:opacity-100 data-[state=open]:opacity-100 md:opacity-0 md:group-hover/card:opacity-100"
         >
           <MoreHorizontal className="size-4" />
         </button>
@@ -195,7 +195,7 @@ function DealCardBody({
   const stageName = stages.find((s) => s.id === deal.stage_id)?.name;
 
   return (
-    <div className={cn("flex flex-col", compact ? "gap-1 p-2.5" : "gap-2 p-3")}>
+    <div className={cn("flex flex-col", compact ? "gap-0.5 px-2 py-1.5" : "gap-2 p-3")}>
       <div className="flex items-start gap-1">
         <Tooltip delayDuration={500}>
           <TooltipTrigger asChild>
@@ -204,8 +204,8 @@ function DealCardBody({
               onClick={(e) => e.stopPropagation()}
               draggable={false}
               className={cn(
-                "min-w-0 flex-1 text-sm font-medium leading-snug text-foreground hover:text-primary hover:underline",
-                compact ? "truncate" : "line-clamp-2",
+                "min-w-0 flex-1 font-medium leading-snug text-foreground hover:text-primary hover:underline",
+                compact ? "truncate text-caption" : "line-clamp-2 text-sm",
               )}
             >
               {deal.title}
@@ -220,7 +220,8 @@ function DealCardBody({
         )}
       </div>
 
-      {deal.organization_name && (
+      {deal.organization_name &&
+        !(compact && deal.organization_name.trim().toLowerCase() === deal.title.trim().toLowerCase()) && (
         <p className="flex min-w-0 items-center gap-1 text-caption text-muted-foreground">
           <Building2 className="size-3 shrink-0" aria-hidden />
           <span className="truncate">{deal.organization_name}</span>
@@ -241,7 +242,7 @@ function DealCardBody({
         </p>
       )}
 
-      <div className="flex items-center gap-2 pt-0.5">
+      <div className={cn("flex items-center", compact ? "gap-1.5" : "gap-2 pt-0.5")}>
         <span className="numeric text-caption font-semibold text-foreground">
           {compact ? shortBRL.format(deal.value) : formatCurrencyBRL(deal.value)}
         </span>
