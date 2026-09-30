@@ -1,7 +1,6 @@
 "use client";
 
 import { AlertTriangle, CalendarX, Snowflake } from "lucide-react";
-import { Input } from "@/components/ui/input";
 import {
   FilterSelect,
   FilterToggle,
@@ -95,39 +94,6 @@ export function PipelineFilters({
           </>
         }
         actions={actions}
-      />
-    </div>
-  );
-}
-
-/** Faixa de valor (mín. e máx.) — fica na linha de cima, ao lado das visões */
-export function ValueRangeFilter({ filters, update }: { filters: DealFilters; update: Update }) {
-  return (
-    <div className="flex items-center gap-1.5">
-      <Input
-        type="number"
-        inputMode="decimal"
-        min={0}
-        placeholder="Valor mín."
-        aria-label="Valor mínimo"
-        className="w-full sm:w-28"
-        defaultValue={filters.min ?? ""}
-        key={`min-${filters.min ?? ""}`}
-        onBlur={(e) => update({ min: e.target.value || null })}
-        onKeyDown={(e) => e.key === "Enter" && update({ min: e.currentTarget.value || null })}
-      />
-      <span className="text-caption text-muted-foreground">até</span>
-      <Input
-        type="number"
-        inputMode="decimal"
-        min={0}
-        placeholder="Valor máx."
-        aria-label="Valor máximo"
-        className="w-full sm:w-28"
-        defaultValue={filters.max ?? ""}
-        key={`max-${filters.max ?? ""}`}
-        onBlur={(e) => update({ max: e.target.value || null })}
-        onKeyDown={(e) => e.key === "Enter" && update({ max: e.currentTarget.value || null })}
       />
     </div>
   );

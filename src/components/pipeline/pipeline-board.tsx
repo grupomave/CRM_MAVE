@@ -27,7 +27,6 @@ import {
   DEAL_FILTER_KEYS,
   FilterChips,
   PipelineFilters,
-  ValueRangeFilter,
   dealFilterChips,
 } from "./pipeline-filters";
 import { DealsTable } from "./deals-table";
@@ -231,9 +230,8 @@ export function PipelineBoard({
           </ViewButton>
         </div>
 
-        {/* Valor e alertas ficam aqui em cima, ao lado das visões */}
+        {/* Alertas ficam aqui em cima, ao lado das visões */}
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-2">
-          <ValueRangeFilter filters={filters} update={update} />
           <AlertToggles filters={filters} update={update} />
         </div>
 
