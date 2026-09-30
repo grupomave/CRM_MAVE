@@ -22,7 +22,14 @@ import type { KanbanDensity, UserPreferences } from "@/lib/preferences";
 import { cn, formatCurrencyBRL } from "@/lib/utils";
 import { KanbanBoard } from "./kanban-board";
 import { PipelineSwitcher } from "./pipeline-switcher";
-import { DEAL_FILTER_KEYS, FilterChips, PipelineFilters, dealFilterChips } from "./pipeline-filters";
+import {
+  AlertToggles,
+  DEAL_FILTER_KEYS,
+  FilterChips,
+  PipelineFilters,
+  ValueRangeFilter,
+  dealFilterChips,
+} from "./pipeline-filters";
 import { DealsTable } from "./deals-table";
 import { MoveToPipelineDialog, type MoveDealsTarget } from "./move-to-pipeline-dialog";
 import type { OwnerOption, PipelineDeal, PipelineOption, PipelineStage } from "./types";
@@ -222,6 +229,12 @@ export function PipelineBoard({
           <ViewButton icon={TrendingUp} active={view === "forecast"} onClick={() => setView("forecast")}>
             Previsão
           </ViewButton>
+        </div>
+
+        {/* Valor e alertas ficam aqui em cima, ao lado das visões */}
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-2">
+          <ValueRangeFilter filters={filters} update={update} />
+          <AlertToggles filters={filters} update={update} />
         </div>
 
         {view === "kanban" && (

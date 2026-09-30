@@ -92,53 +92,64 @@ export function PipelineFilters({
                 options={sources.map((s) => ({ value: s, label: s }))}
               />
             )}
-            <div className="flex items-center gap-1.5">
-              <Input
-                type="number"
-                inputMode="decimal"
-                min={0}
-                placeholder="Valor mín."
-                aria-label="Valor mínimo"
-                className="w-full sm:w-28"
-                defaultValue={filters.min ?? ""}
-                key={`min-${filters.min ?? ""}`}
-                onBlur={(e) => update({ min: e.target.value || null })}
-                onKeyDown={(e) => e.key === "Enter" && update({ min: e.currentTarget.value || null })}
-              />
-              <span className="text-caption text-muted-foreground">até</span>
-              <Input
-                type="number"
-                inputMode="decimal"
-                min={0}
-                placeholder="Valor máx."
-                aria-label="Valor máximo"
-                className="w-full sm:w-28"
-                defaultValue={filters.max ?? ""}
-                key={`max-${filters.max ?? ""}`}
-                onBlur={(e) => update({ max: e.target.value || null })}
-                onKeyDown={(e) => e.key === "Enter" && update({ max: e.currentTarget.value || null })}
-              />
-            </div>
           </>
         }
         actions={actions}
       />
+    </div>
+  );
+}
 
-      <div className="flex flex-wrap items-center gap-1.5">
-        <span className="mr-1 text-caption text-muted-foreground">Alertas:</span>
-        <FilterToggle active={filters.overdue} onClick={() => update({ overdue: !filters.overdue })}>
-          <CalendarX />
-          Atividade atrasada
-        </FilterToggle>
-        <FilterToggle active={filters.noActivity} onClick={() => update({ noact: !filters.noActivity })}>
-          <AlertTriangle />
-          Sem próxima atividade
-        </FilterToggle>
-        <FilterToggle active={filters.stagnant} onClick={() => update({ stagnant: !filters.stagnant })}>
-          <Snowflake />
-          Estagnado
-        </FilterToggle>
-      </div>
+/** Faixa de valor (mín. e máx.) — fica na linha de cima, ao lado das visões */
+export function ValueRangeFilter({ filters, update }: { filters: DealFilters; update: Update }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <Input
+        type="number"
+        inputMode="decimal"
+        min={0}
+        placeholder="Valor mín."
+        aria-label="Valor mínimo"
+        className="w-full sm:w-28"
+        defaultValue={filters.min ?? ""}
+        key={`min-${filters.min ?? ""}`}
+        onBlur={(e) => update({ min: e.target.value || null })}
+        onKeyDown={(e) => e.key === "Enter" && update({ min: e.currentTarget.value || null })}
+      />
+      <span className="text-caption text-muted-foreground">até</span>
+      <Input
+        type="number"
+        inputMode="decimal"
+        min={0}
+        placeholder="Valor máx."
+        aria-label="Valor máximo"
+        className="w-full sm:w-28"
+        defaultValue={filters.max ?? ""}
+        key={`max-${filters.max ?? ""}`}
+        onBlur={(e) => update({ max: e.target.value || null })}
+        onKeyDown={(e) => e.key === "Enter" && update({ max: e.currentTarget.value || null })}
+      />
+    </div>
+  );
+}
+
+/** Atalhos de alerta (atrasada, sem próxima atividade, estagnado) */
+export function AlertToggles({ filters, update }: { filters: DealFilters; update: Update }) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="mr-1 text-caption text-muted-foreground">Alertas:</span>
+      <FilterToggle active={filters.overdue} onClick={() => update({ overdue: !filters.overdue })}>
+        <CalendarX />
+        Atividade atrasada
+      </FilterToggle>
+      <FilterToggle active={filters.noActivity} onClick={() => update({ noact: !filters.noActivity })}>
+        <AlertTriangle />
+        Sem próxima atividade
+      </FilterToggle>
+      <FilterToggle active={filters.stagnant} onClick={() => update({ stagnant: !filters.stagnant })}>
+        <Snowflake />
+        Estagnado
+      </FilterToggle>
     </div>
   );
 }
