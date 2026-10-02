@@ -54,6 +54,7 @@ import {
 } from "@/lib/actions/users";
 import { maskPhoneBR } from "@/lib/masks";
 import { PipelinesSettings, type StageStats } from "./pipelines-settings";
+import { AuditLogSettings } from "./audit-log-settings";
 import { LostReasonsSettings, type LostReasonUsage, type SettingsLostReason } from "./lost-reasons-settings";
 import { friendlyError, toast } from "@/lib/toast";
 import type { UserRole, CustomFieldType, EntityType } from "@/lib/supabase/types";
@@ -124,6 +125,7 @@ export function SettingsTabs({
         <TabsTrigger value="pipelines">Pipelines e estágios</TabsTrigger>
         <TabsTrigger value="lost-reasons">Motivos da perda</TabsTrigger>
         <TabsTrigger value="fields">Campos customizados</TabsTrigger>
+        {isAdmin && <TabsTrigger value="audit">Logs de auditoria</TabsTrigger>}
       </TabsList>
 
       <TabsContent value="users">
@@ -138,6 +140,11 @@ export function SettingsTabs({
       <TabsContent value="fields">
         <CustomFieldsTab customFields={customFields} />
       </TabsContent>
+      {isAdmin && (
+        <TabsContent value="audit">
+          <AuditLogSettings users={profiles.map((p) => ({ id: p.id, full_name: p.full_name }))} />
+        </TabsContent>
+      )}
     </Tabs>
   );
 }

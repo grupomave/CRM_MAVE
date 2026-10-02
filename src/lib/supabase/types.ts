@@ -149,6 +149,23 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["deals"]["Row"]>;
         Relationships: [];
       };
+      audit_logs: {
+        Row: {
+          id: number;
+          occurred_at: string;
+          actor_id: string | null;
+          actor_name: string;
+          action: "insert" | "update" | "delete";
+          table_name: string;
+          record_id: string | null;
+          record_label: string | null;
+          changes: Record<string, unknown>;
+        };
+        // Gravado por gatilhos e pelas server actions de usuários (service role)
+        Insert: Partial<Database["public"]["Tables"]["audit_logs"]["Row"]>;
+        Update: never;
+        Relationships: [];
+      };
       lost_reasons: {
         Row: {
           id: string;

@@ -71,7 +71,7 @@ export default async function SettingsPage() {
     <div className="flex flex-col gap-4">
       <PageHeader
         title="Configurações"
-        description="Usuários e permissões, pipelines, motivos da perda e campos customizados"
+        description="Usuários e permissões, pipelines, motivos da perda, campos customizados e logs de auditoria"
       />
 
       {!isAdmin && (
