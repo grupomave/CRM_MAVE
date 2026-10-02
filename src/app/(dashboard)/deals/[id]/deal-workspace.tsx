@@ -9,6 +9,7 @@ import {
   FileText,
   Flag,
   Mail,
+  MessageCircle,
   MessageSquareText,
   Paperclip,
   Phone,
@@ -41,6 +42,7 @@ const ACTIVITY_ICON: Record<string, LucideIcon> = {
   call: Phone,
   meeting: Users,
   email: Mail,
+  whatsapp: MessageCircle,
   task: CheckCircle2,
 };
 

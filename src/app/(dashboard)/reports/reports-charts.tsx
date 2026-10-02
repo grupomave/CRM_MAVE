@@ -269,6 +269,7 @@ interface ActivityByOwnerRow {
   call: number;
   meeting: number;
   email: number;
+  whatsapp: number;
   done: number;
   total: number;
 }
@@ -288,6 +289,7 @@ export function ActivityByOwnerTable({ rows }: { rows: ActivityByOwnerRow[] }) {
               <TableHead align="right">Ligações</TableHead>
               <TableHead align="right">Reuniões</TableHead>
               <TableHead align="right">E-mails</TableHead>
+              <TableHead align="right">WhatsApp</TableHead>
               <TableHead align="right">Concluídas</TableHead>
               <TableHead align="right">Total</TableHead>
             </TableRow>
@@ -300,6 +302,7 @@ export function ActivityByOwnerTable({ rows }: { rows: ActivityByOwnerRow[] }) {
                 <TableCell numeric>{r.call}</TableCell>
                 <TableCell numeric>{r.meeting}</TableCell>
                 <TableCell numeric>{r.email}</TableCell>
+                <TableCell numeric>{r.whatsapp}</TableCell>
                 <TableCell numeric>
                   {r.done}/{r.total}
                 </TableCell>
@@ -308,7 +311,7 @@ export function ActivityByOwnerTable({ rows }: { rows: ActivityByOwnerRow[] }) {
             ))}
             {rows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
                   Nenhuma atividade com data no período.
                 </TableCell>
               </TableRow>

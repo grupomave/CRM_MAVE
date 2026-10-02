@@ -320,15 +320,15 @@ export default async function ReportsPage({
     .sort((a, b) => b.value - a.value);
 
   // --- Atividades por vendedor no período ---
-  const ACTIVITY_TYPES = ["task", "call", "meeting", "email"] as const;
+  const ACTIVITY_TYPES = ["task", "call", "meeting", "email", "whatsapp"] as const;
   const activityByOwnerMap = new Map<
     string,
-    { task: number; call: number; meeting: number; email: number; done: number; total: number }
+    { task: number; call: number; meeting: number; email: number; whatsapp: number; done: number; total: number }
   >();
   for (const a of activitiesInRange) {
     const cur =
       activityByOwnerMap.get(a.owner_id) ??
-      { task: 0, call: 0, meeting: 0, email: 0, done: 0, total: 0 };
+      { task: 0, call: 0, meeting: 0, email: 0, whatsapp: 0, done: 0, total: 0 };
     if (ACTIVITY_TYPES.includes(a.type as (typeof ACTIVITY_TYPES)[number])) {
       cur[a.type as (typeof ACTIVITY_TYPES)[number]] += 1;
     }
@@ -588,6 +588,7 @@ export default async function ReportsPage({
         { header: "Ligações", key: "call", width: 12 },
         { header: "Reuniões", key: "meeting", width: 12 },
         { header: "E-mails", key: "email", width: 12 },
+        { header: "WhatsApp", key: "whatsapp", width: 12 },
         { header: "Concluídas", key: "done", width: 14 },
         { header: "Total", key: "total", width: 12 },
       ],

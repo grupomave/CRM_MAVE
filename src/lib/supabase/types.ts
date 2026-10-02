@@ -7,7 +7,7 @@
 export type UserRole = "admin" | "gestor" | "vendedor";
 export type EntityType = "deal" | "contact" | "organization";
 export type CustomFieldType = "text" | "number" | "date" | "select" | "checkbox";
-export type ActivityType = "task" | "call" | "meeting" | "email";
+export type ActivityType = "task" | "call" | "meeting" | "email" | "whatsapp";
 export type LeadStatus = "new" | "contacted" | "qualified" | "disqualified" | "converted";
 export type TriggerEvent =
   | "deal_stage_changed"

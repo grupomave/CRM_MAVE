@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { CheckCircle2, Mail, Phone, Users, type LucideIcon } from "lucide-react";
+import { CheckCircle2, Mail, MessageCircle, Phone, Users, type LucideIcon } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -26,7 +26,7 @@ import type { ActivityType } from "@/lib/supabase/types";
 const schema = z
   .object({
     subject: z.string().trim().min(1, "Informe o assunto"),
-    type: z.enum(["task", "call", "meeting", "email"]),
+    type: z.enum(["task", "call", "meeting", "email", "whatsapp"]),
     date: z.string().optional(),
     time: z.string().optional(),
   })
@@ -39,6 +39,7 @@ const TYPES: { value: ActivityType; label: string; icon: LucideIcon }[] = [
   { value: "meeting", label: "Reunião", icon: Users },
   { value: "task", label: "Tarefa", icon: CheckCircle2 },
   { value: "email", label: "E-mail", icon: Mail },
+  { value: "whatsapp", label: "WhatsApp", icon: MessageCircle },
 ];
 
 // Data (aaaa-mm-dd) + hora (hh:mm) no fuso do navegador -> ISO com fuso.
@@ -117,7 +118,7 @@ export function NewActivityDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Nova atividade</DialogTitle>
-          <DialogDescription>Ligação, reunião, tarefa ou e-mail.</DialogDescription>
+          <DialogDescription>Ligação, reunião, tarefa, e-mail ou WhatsApp.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
           <FormField label="Tipo" htmlFor="activity-type">
@@ -125,7 +126,7 @@ export function NewActivityDialog({
               control={control}
               name="type"
               render={({ field }) => (
-                <div id="activity-type" role="radiogroup" aria-label="Tipo de atividade" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <div id="activity-type" role="radiogroup" aria-label="Tipo de atividade" className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {TYPES.map((t) => (
                     <button
                       key={t.value}

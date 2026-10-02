@@ -27,6 +27,7 @@ const TYPE_LABEL: Record<string, string> = {
   call: "Ligação",
   meeting: "Reunião",
   email: "E-mail",
+  whatsapp: "WhatsApp",
 };
 
 interface ActivityRow {

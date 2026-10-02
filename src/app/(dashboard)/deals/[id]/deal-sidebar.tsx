@@ -24,6 +24,7 @@ const ACTIVITY_COLORS: Record<string, string> = {
   meeting: "bg-chart-2",
   task: "bg-chart-3",
   email: "bg-chart-4",
+  whatsapp: "bg-chart-5",
 };
 
 function FieldRow({

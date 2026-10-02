@@ -1,0 +1,3 @@
+-- Postgres não permite remover um valor de enum. Para reverter, migre as
+-- atividades 'whatsapp' para outro tipo; o valor pode ficar sem uso no enum:
+--   update activities set type = 'task' where type = 'whatsapp';
