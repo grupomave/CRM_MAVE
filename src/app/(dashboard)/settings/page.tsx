@@ -22,7 +22,7 @@ export default async function SettingsPage() {
 
   const isAdmin = myProfile?.role === "admin";
 
-  const [profilesRes, pipelinesRes, stagesRes, customFieldsRes, teamsRes] =
+  const [profilesRes, pipelinesRes, stagesRes, customFieldsRes, teamsRes, lostReasonsRes] =
     await Promise.all([
       // Admin ve todo mundo com e-mail (via listUsersForAdmin, que usa o
       // client de service role); os demais papeis ficam com o que a RLS
@@ -45,6 +45,7 @@ export default async function SettingsPage() {
         .select("id, entity_type, label, field_type, required, order_index")
         .order("order_index"),
       supabase.from("teams").select("id, name"),
+      supabase.from("lost_reasons").select("id, name, is_active, order_index").order("order_index"),
     ]);
 
   // Quantidade e valor dos negócios por etapa (para mover/excluir etapas)
@@ -59,11 +60,18 @@ export default async function SettingsPage() {
     stageStats[d.stage_id] = current;
   }
 
+  // Uso de cada motivo (para bloquear exclusão de motivos em uso)
+  const lostDeals = await fetchAllRows<{ lost_reason_id: string }>((from, to) =>
+    supabase.from("deals").select("lost_reason_id").not("lost_reason_id", "is", null).range(from, to),
+  );
+  const lostReasonUsage: Record<string, number> = {};
+  for (const d of lostDeals) lostReasonUsage[d.lost_reason_id] = (lostReasonUsage[d.lost_reason_id] ?? 0) + 1;
+
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
         title="Configurações"
-        description="Usuários e permissões, pipelines e campos customizados"
+        description="Usuários e permissões, pipelines, motivos da perda e campos customizados"
       />
 
       {!isAdmin && (
@@ -82,6 +90,8 @@ export default async function SettingsPage() {
         stages={stagesRes.data ?? []}
         customFields={customFieldsRes.data ?? []}
         teams={teamsRes.data ?? []}
+        lostReasons={lostReasonsRes.data ?? []}
+        lostReasonUsage={lostReasonUsage}
       />
     </div>
   );

@@ -34,3 +34,6 @@ supabase/.temp
 
 # relatório gerado pela importação one-off do Pipedrive (scripts/import-pipedrive.ts)
 import-report.json
+
+# Dados pessoais da base comercial (nao versionar)
+docs/replace-payload-*.json

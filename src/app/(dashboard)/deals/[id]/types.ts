@@ -1,5 +1,3 @@
-import type { LostReason } from "@/lib/supabase/types";
-
 export type DealStatus = "open" | "won" | "lost";
 
 export interface DealDetail {
@@ -15,7 +13,8 @@ export interface DealDetail {
   organization_id: string | null;
   contact_id: string | null;
   owner_id: string;
-  lost_reason: LostReason | null;
+  lost_reason_id: string | null;
+  lost_reasons: { name: string } | null;
   frozen_at: string | null;
   created_at: string;
   last_activity_at: string | null;

@@ -54,6 +54,7 @@ import {
 } from "@/lib/actions/users";
 import { maskPhoneBR } from "@/lib/masks";
 import { PipelinesSettings, type StageStats } from "./pipelines-settings";
+import { LostReasonsSettings, type LostReasonUsage, type SettingsLostReason } from "./lost-reasons-settings";
 import { friendlyError, toast } from "@/lib/toast";
 import type { UserRole, CustomFieldType, EntityType } from "@/lib/supabase/types";
 
@@ -103,6 +104,8 @@ export function SettingsTabs({
   stages,
   customFields,
   teams,
+  lostReasons,
+  lostReasonUsage,
 }: {
   isAdmin: boolean;
   stageStats: StageStats;
@@ -111,12 +114,15 @@ export function SettingsTabs({
   stages: Stage[];
   customFields: CustomField[];
   teams: Team[];
+  lostReasons: SettingsLostReason[];
+  lostReasonUsage: LostReasonUsage;
 }) {
   return (
     <Tabs defaultValue="users">
       <TabsList variant="underline">
         <TabsTrigger value="users">Usuários e permissões</TabsTrigger>
         <TabsTrigger value="pipelines">Pipelines e estágios</TabsTrigger>
+        <TabsTrigger value="lost-reasons">Motivos da perda</TabsTrigger>
         <TabsTrigger value="fields">Campos customizados</TabsTrigger>
       </TabsList>
 
@@ -125,6 +131,9 @@ export function SettingsTabs({
       </TabsContent>
       <TabsContent value="pipelines">
         <PipelinesSettings pipelines={pipelines} stages={stages} stats={stageStats} isAdmin={isAdmin} />
+      </TabsContent>
+      <TabsContent value="lost-reasons">
+        <LostReasonsSettings reasons={lostReasons} usage={lostReasonUsage} isAdmin={isAdmin} />
       </TabsContent>
       <TabsContent value="fields">
         <CustomFieldsTab customFields={customFields} />

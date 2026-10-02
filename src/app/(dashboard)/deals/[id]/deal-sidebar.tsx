@@ -13,7 +13,7 @@ import { WhatsAppButton } from "@/components/whatsapp-button";
 import { createClient } from "@/lib/supabase/client";
 import { friendlyError, toast } from "@/lib/toast";
 import { formatDate } from "@/lib/utils";
-import { DEAL_STATUS_LABEL, LOST_REASON_LABEL } from "@/lib/supabase/types";
+import { DEAL_STATUS_LABEL } from "@/lib/supabase/types";
 import type { Database } from "@/lib/supabase/types";
 import { ACTIVITY_TYPE_LABEL, type DealDetail, type DealOverview, type Option } from "./types";
 
@@ -200,8 +200,8 @@ export function DealSidebar({
               </Badge>
             }
           />
-          {deal.status === "lost" && deal.lost_reason && (
-            <Stat label="Motivo da perda" value={LOST_REASON_LABEL[deal.lost_reason]} />
+          {deal.status === "lost" && deal.lost_reasons && (
+            <Stat label="Motivo da perda" value={deal.lost_reasons.name} />
           )}
           {deal.frozen_at && <Stat label="Congelado em" value={formatDate(deal.frozen_at)} />}
           <Stat label="Criado em" value={formatDate(deal.created_at)} />

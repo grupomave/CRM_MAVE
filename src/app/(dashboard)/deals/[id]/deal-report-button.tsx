@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { formatCurrencyBRL } from "@/lib/utils";
-import { DEAL_STATUS_LABEL, LOST_REASON_LABEL, type LostReason } from "@/lib/supabase/types";
+import { DEAL_STATUS_LABEL } from "@/lib/supabase/types";
 import { exportWorkbook, type ExcelSheet } from "@/lib/export/excel";
 import { exportPdf, type PdfSection } from "@/lib/export/pdf";
 import { loadImageAsDataUrl } from "@/lib/export/capture";
@@ -31,7 +31,7 @@ export interface DealReportData {
     status: string;
     expected_close_date: string | null;
     source: string | null;
-    lost_reason: LostReason | null;
+    lost_reason: string | null;
     organizations: { name: string } | null;
     contacts: { name: string; phone: string | null; whatsapp: string | null } | null;
     profiles: { full_name: string } | null;
@@ -57,7 +57,7 @@ function fileBaseName(data: DealReportData) {
 function statusLabel(data: DealReportData) {
   const base = DEAL_STATUS_LABEL[data.deal.status as keyof typeof DEAL_STATUS_LABEL] ?? data.deal.status;
   if (data.deal.status === "lost" && data.deal.lost_reason) {
-    return `${base} (${LOST_REASON_LABEL[data.deal.lost_reason] ?? data.deal.lost_reason})`;
+    return `${base} (${data.deal.lost_reason})`;
   }
   return base;
 }

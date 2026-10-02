@@ -6,12 +6,15 @@ import {
   AlertTriangle,
   ArrowRightLeft,
   CalendarX,
+  Check,
   MoreHorizontal,
+  Pencil,
   RotateCcw,
   Snowflake,
   ThumbsDown,
   ThumbsUp,
   Trash2,
+  X,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,6 +38,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { FormField } from "@/components/ui/form-field";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -45,7 +49,6 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { friendlyError, toast } from "@/lib/toast";
 import { cn, formatCurrencyBRL } from "@/lib/utils";
-import { LOST_REASON_LABEL, type LostReason } from "@/lib/supabase/types";
 import type { DealAlerts } from "@/lib/deal-alerts";
 import { DealReportButton } from "./deal-report-button";
 import {
@@ -64,6 +67,7 @@ export function DealHeader({
   daysSinceLastActivity,
   alerts,
   canManage,
+  lostReasons,
   reportData,
   pipelines,
 }: {
@@ -75,13 +79,14 @@ export function DealHeader({
   daysSinceLastActivity: number | null;
   alerts: DealAlerts;
   canManage: boolean;
+  lostReasons: { id: string; name: string }[];
   reportData: ComponentProps<typeof DealReportButton>["data"];
   pipelines: { id: string; name: string }[];
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [lostOpen, setLostOpen] = useState(false);
-  const [lostReason, setLostReason] = useState<LostReason | "">("");
+  const [lostReasonId, setLostReasonId] = useState("");
   const [moveTarget, setMoveTarget] = useState<MoveDealsTarget | null>(null);
   const currentStage = stages.find((s) => s.id === deal.stage_id);
   const currentIndex = stages.findIndex((s) => s.id === deal.stage_id);
@@ -103,12 +108,12 @@ export function DealHeader({
     router.refresh();
   }
 
-  async function changeStatus(toStatus: DealStatus, reason?: LostReason) {
+  async function changeStatus(toStatus: DealStatus, reason?: { id: string; name: string }) {
     setBusy(true);
     const supabase = createClient();
     const { error } = await supabase
       .from("deals")
-      .update({ status: toStatus, lost_reason: toStatus === "lost" ? (reason ?? null) : null })
+      .update({ status: toStatus, lost_reason_id: toStatus === "lost" ? (reason?.id ?? null) : null })
       .eq("id", deal.id);
     if (error) {
       setBusy(false);
@@ -123,14 +128,15 @@ export function DealHeader({
         deal_id: deal.id,
         from_status: deal.status,
         to_status: toStatus,
-        reason: toStatus === "lost" ? (reason ?? null) : null,
+        reason_id: toStatus === "lost" ? (reason?.id ?? null) : null,
+        reason_name: toStatus === "lost" ? (reason?.name ?? null) : null,
         changed_by: user.id,
       });
       if (historyError) toast.warning("Status alterado, mas o histórico não foi registrado");
     }
     setBusy(false);
     setLostOpen(false);
-    setLostReason("");
+    setLostReasonId("");
     toast.success(
       toStatus === "won" ? "Negócio ganho! 🎉" : toStatus === "lost" ? "Negócio marcado como perdido" : "Negócio reaberto",
     );
@@ -186,11 +192,11 @@ export function DealHeader({
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex min-w-0 flex-col gap-1.5">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="min-w-0 break-words text-title text-foreground">{deal.title}</h1>
+            <DealTitle dealId={deal.id} title={deal.title} />
             {deal.status === "won" && <Badge variant="success">Ganho</Badge>}
             {deal.status === "lost" && (
               <Badge variant="destructive">
-                Perdido{deal.lost_reason ? ` · ${LOST_REASON_LABEL[deal.lost_reason]}` : ""}
+                Perdido{deal.lost_reasons ? ` · ${deal.lost_reasons.name}` : ""}
               </Badge>
             )}
             {deal.frozen_at && (
@@ -350,14 +356,14 @@ export function DealHeader({
             <DialogDescription>O motivo ajuda a entender as perdas nos relatórios.</DialogDescription>
           </DialogHeader>
           <FormField label="Motivo da perda" htmlFor="lost-reason" required>
-            <Select value={lostReason} onValueChange={(v) => setLostReason(v as LostReason)}>
+            <Select value={lostReasonId} onValueChange={setLostReasonId}>
               <SelectTrigger id="lost-reason">
                 <SelectValue placeholder="Selecione o motivo" />
               </SelectTrigger>
               <SelectContent>
-                {Object.entries(LOST_REASON_LABEL).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>
-                    {label}
+                {lostReasons.map((r) => (
+                  <SelectItem key={r.id} value={r.id}>
+                    {r.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -369,9 +375,9 @@ export function DealHeader({
             </Button>
             <Button
               variant="destructive"
-              disabled={!lostReason}
+              disabled={!lostReasonId}
               loading={busy}
-              onClick={() => changeStatus("lost", lostReason as LostReason)}
+              onClick={() => changeStatus("lost", lostReasons.find((r) => r.id === lostReasonId))}
             >
               Confirmar perda
             </Button>
@@ -379,5 +385,86 @@ export function DealHeader({
         </DialogContent>
       </Dialog>
     </header>
+  );
+}
+
+// Nome do negócio com edição inline: lápis -> campo; Enter salva, Esc cancela.
+function DealTitle({ dealId, title }: { dealId: string; title: string }) {
+  const router = useRouter();
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(title);
+  const [saving, setSaving] = useState(false);
+  const trimmed = value.trim();
+
+  function startEditing() {
+    setValue(title);
+    setEditing(true);
+  }
+
+  async function save() {
+    if (saving) return;
+    if (!trimmed) return;
+    if (trimmed === title) {
+      setEditing(false);
+      return;
+    }
+    setSaving(true);
+    const { error } = await createClient().from("deals").update({ title: trimmed }).eq("id", dealId);
+    setSaving(false);
+    if (error) {
+      toast.error("Não foi possível renomear o negócio", { description: friendlyError(error) });
+      return;
+    }
+    toast.success("Nome do negócio atualizado");
+    setEditing(false);
+    router.refresh();
+  }
+
+  if (!editing) {
+    return (
+      <div className="flex min-w-0 items-center gap-1">
+        <h1 className="min-w-0 break-words text-title text-foreground">{title}</h1>
+        <SimpleTooltip content="Editar nome do negócio">
+          <Button variant="ghost" size="icon-xs" aria-label="Editar nome do negócio" onClick={startEditing}>
+            <Pencil />
+          </Button>
+        </SimpleTooltip>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-w-0 items-center gap-1">
+      <Input
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            void save();
+          }
+          if (e.key === "Escape") setEditing(false);
+        }}
+        aria-label="Nome do negócio"
+        aria-invalid={!trimmed}
+        maxLength={200}
+        autoFocus
+        disabled={saving}
+        className="h-9 w-72 max-w-full text-subtitle sm:w-96"
+      />
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        aria-label="Salvar nome"
+        disabled={!trimmed}
+        loading={saving}
+        onClick={() => void save()}
+      >
+        <Check />
+      </Button>
+      <Button variant="ghost" size="icon-xs" aria-label="Cancelar edição" disabled={saving} onClick={() => setEditing(false)}>
+        <X />
+      </Button>
+    </div>
   );
 }

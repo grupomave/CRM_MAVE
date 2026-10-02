@@ -18,15 +18,6 @@ export type NotificationType =
   | "deal_assigned"
   | "activity_due"
   | "automation";
-export type LostReason =
-  | "sem_retorno"
-  | "preco"
-  | "concorrente"
-  | "sem_interesse"
-  | "contratacao_adiada"
-  | "fora_perfil"
-  | "dados_incorretos"
-  | "outro";
 export type ProposalStatus =
   | "draft"
   | "sent"
@@ -44,17 +35,6 @@ export const PROPOSAL_STATUS_LABEL: Record<ProposalStatus, string> = {
   negotiation: "Negociação",
   approved: "Aprovado",
   rejected: "Recusado",
-};
-
-export const LOST_REASON_LABEL: Record<LostReason, string> = {
-  sem_retorno: "Sem retorno",
-  preco: "Preço",
-  concorrente: "Fechou com concorrente",
-  sem_interesse: "Não possui interesse",
-  contratacao_adiada: "Contratação adiada",
-  fora_perfil: "Fora do perfil",
-  dados_incorretos: "Dados incorretos",
-  outro: "Outro motivo",
 };
 
 export const DEAL_STATUS_LABEL: Record<"open" | "won" | "lost", string> = {
@@ -154,7 +134,7 @@ export interface Database {
           source: string | null;
           created_at: string;
           updated_at: string;
-          lost_reason: LostReason | null;
+          lost_reason_id: string | null;
           original_owner_id: string | null;
           last_activity_at: string | null;
           frozen_at: string | null;
@@ -169,13 +149,28 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["deals"]["Row"]>;
         Relationships: [];
       };
+      lost_reasons: {
+        Row: {
+          id: string;
+          name: string;
+          is_active: boolean;
+          order_index: number;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["lost_reasons"]["Row"]> & {
+          name: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["lost_reasons"]["Row"]>;
+        Relationships: [];
+      };
       deal_status_history: {
         Row: {
           id: string;
           deal_id: string;
           from_status: "open" | "won" | "lost";
           to_status: "open" | "won" | "lost";
-          reason: LostReason | null;
+          reason_id: string | null;
+          reason_name: string | null;
           changed_by: string;
           changed_at: string;
         };

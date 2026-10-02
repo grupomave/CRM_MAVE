@@ -2,7 +2,7 @@ import type { ComponentProps } from "react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { DEAL_STATUS_LABEL, LOST_REASON_LABEL } from "@/lib/supabase/types";
+import { DEAL_STATUS_LABEL } from "@/lib/supabase/types";
 import { computeDealAlerts } from "@/lib/deal-alerts";
 import { computeStageDays, daysSince, withOverdue } from "@/lib/deal-metrics";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
@@ -43,7 +43,7 @@ export default async function DealDetailPage({
     .from("deals")
     .select(
       `id, title, value, currency, status, expected_close_date, source, stage_id, pipeline_id,
-       lost_reason, frozen_at, last_activity_at, created_at, organization_id, contact_id, owner_id,
+       lost_reason_id, lost_reasons ( name ), frozen_at, last_activity_at, created_at, organization_id, contact_id, owner_id,
        organizations ( id, name ),
        contacts ( id, name, phone, whatsapp ),
        profiles!deals_owner_id_fkey ( full_name )`,
@@ -68,6 +68,7 @@ export default async function DealDetailPage({
     contacts,
     ownersRes,
     proposalsRes,
+    lostReasonsRes,
   ] = await Promise.all([
     supabase.from("pipelines").select("id, name").order("name"),
     supabase
@@ -100,7 +101,7 @@ export default async function DealDetailPage({
       .order("changed_at", { ascending: false }),
     supabase
       .from("deal_status_history")
-      .select("id, from_status, to_status, reason, changed_at, profiles ( full_name )")
+      .select("id, from_status, to_status, reason_name, changed_at, profiles ( full_name )")
       .eq("deal_id", id)
       .order("changed_at", { ascending: false }),
     fetchAllRows<{ id: string; name: string; city: string | null }>((from, to) =>
@@ -117,6 +118,8 @@ export default async function DealDetailPage({
       )
       .eq("deal_id", id)
       .order("created_at", { ascending: false }),
+    // Só motivos ativos aparecem para novas perdas; o motivo atual do negócio vem no join
+    supabase.from("lost_reasons").select("id, name").eq("is_active", true).order("order_index").order("name"),
   ]);
 
   const proposalIds = ((proposalsRes.data ?? []) as { id: string }[]).map((p) => p.id);
@@ -153,7 +156,7 @@ export default async function DealDetailPage({
     id: string;
     from_status: keyof typeof DEAL_STATUS_LABEL;
     to_status: keyof typeof DEAL_STATUS_LABEL;
-    reason: keyof typeof LOST_REASON_LABEL | null;
+    reason_name: string | null;
     changed_at: string;
     profiles: Named;
   }[];
@@ -221,7 +224,7 @@ export default async function DealDetailPage({
       id: `status-${h.id}`,
       kind: "status" as const,
       title: "Status alterado",
-      body: `${DEAL_STATUS_LABEL[h.from_status] ?? h.from_status} → ${DEAL_STATUS_LABEL[h.to_status] ?? h.to_status}${h.reason ? ` (${LOST_REASON_LABEL[h.reason] ?? h.reason})` : ""}`,
+      body: `${DEAL_STATUS_LABEL[h.from_status] ?? h.from_status} → ${DEAL_STATUS_LABEL[h.to_status] ?? h.to_status}${h.reason_name ? ` (${h.reason_name})` : ""}`,
       at: h.changed_at,
       actor: h.profiles?.full_name ?? null,
     })),
@@ -303,6 +306,7 @@ export default async function DealDetailPage({
         daysSinceLastActivity={daysSince(deal.last_activity_at)}
         alerts={alerts}
         canManage={canManage}
+        lostReasons={(lostReasonsRes.data ?? []) as { id: string; name: string }[]}
         reportData={{
           deal: {
             title: deal.title,
@@ -310,7 +314,7 @@ export default async function DealDetailPage({
             status: deal.status,
             expected_close_date: deal.expected_close_date,
             source: deal.source,
-            lost_reason: deal.lost_reason,
+            lost_reason: deal.lost_reasons?.name ?? null,
             organizations: deal.organizations,
             contacts: deal.contacts,
             profiles: deal.profiles,

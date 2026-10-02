@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
-import { LOST_REASON_LABEL } from "@/lib/supabase/types";
 import { monthKey, monthLabel, monthRange, defaultTwelveMonthRange } from "@/lib/date-range";
 import { formatCurrencyBRL } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -33,7 +32,7 @@ interface DealRow {
   title: string;
   value: number;
   status: "open" | "won" | "lost";
-  lost_reason: string | null;
+  lost_reasons: { name: string } | null;
   stage_id: string;
   owner_id: string;
   source: string | null;
@@ -85,7 +84,7 @@ export default async function ReportsPage({
   let dealsQuery = supabase
     .from("deals")
     .select(
-      "id, title, value, status, lost_reason, stage_id, owner_id, source, expected_close_date, created_at, updated_at, closed_at, last_activity_at, profiles!deals_owner_id_fkey ( full_name ), organizations ( name, state )",
+      "id, title, value, status, lost_reasons ( name ), stage_id, owner_id, source, expected_close_date, created_at, updated_at, closed_at, last_activity_at, profiles!deals_owner_id_fkey ( full_name ), organizations ( name, state )",
     );
   if (pipelineId) dealsQuery = dealsQuery.eq("pipeline_id", pipelineId);
   if (ownerId !== "all") dealsQuery = dealsQuery.eq("owner_id", ownerId);
@@ -221,9 +220,7 @@ export default async function ReportsPage({
   // --- Perdas ---
   const lossReasonTotals = new Map<string, number>();
   for (const d of lostInRange) {
-    const label = d.lost_reason
-      ? LOST_REASON_LABEL[d.lost_reason as keyof typeof LOST_REASON_LABEL] ?? d.lost_reason
-      : "Não informado";
+    const label = d.lost_reasons?.name ?? "Não informado";
     lossReasonTotals.set(label, (lossReasonTotals.get(label) ?? 0) + 1);
   }
   const lossReasonsData = Array.from(lossReasonTotals.entries())
