@@ -1,16 +1,16 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { Card, CardAction, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { RelatedList } from "@/components/related-list";
-import { formatCurrencyBRL, formatDate, isoDaysAgo } from "@/lib/utils";
+import { formatCurrencyBRL, formatDate } from "@/lib/utils";
 import {
   Handshake,
   CalendarClock,
   CalendarCheck,
+  CalendarX,
   TrendingUp,
   AlertTriangle,
   Percent,
@@ -19,40 +19,13 @@ import {
   UserMinus,
   PlusCircle,
 } from "lucide-react";
-import {
-  defaultTwelveMonthRange,
-  monthKey,
-  monthLabel,
-  monthRange,
-  saoPauloDayBounds,
-} from "@/lib/date-range";
+import { monthKey, monthLabel, monthRange } from "@/lib/date-range";
 import { StageFunnelChart, MonthlyTrendChart } from "@/app/(dashboard)/reports/reports-charts";
+import { change, closedAt, dashboardQuery, loadDashboardData, STALLED_DAYS } from "@/lib/data/dashboard";
+import { formatOverdue } from "@/lib/deal-alerts";
 import { DashboardFilters } from "./dashboard-filters";
 
 export const metadata = { title: "Dashboard" };
-
-interface DealRow {
-  id: string;
-  title: string;
-  value: number;
-  status: "open" | "won" | "lost";
-  stage_id: string;
-  pipeline_id: string;
-  organization_id: string | null;
-  updated_at: string;
-  closed_at: string | null;
-  created_at: string;
-}
-
-// Data de fechamento própria (migration 0023); updated_at só como reserva
-const closedAt = (d: DealRow) => d.closed_at ?? d.updated_at;
-
-const DAY = 86400000;
-
-function change(current: number, previous: number) {
-  if (previous === 0) return current === 0 ? 0 : null;
-  return (current - previous) / previous;
-}
 
 export default async function DashboardPage({
   searchParams,
@@ -60,157 +33,52 @@ export default async function DashboardPage({
   searchParams: Promise<{ pipeline?: string; from?: string; to?: string }>;
 }) {
   const supabase = await createClient();
-  const params = await searchParams;
+  const data = await loadDashboardData(supabase, await searchParams);
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    isVendedor,
+    firstName,
+    pipelines,
+    pipelineId,
+    stages,
+    fromParam,
+    toParam,
+    openDeals,
+    openValue,
+    stalledAll,
+    current,
+    previous,
+    newCustomers,
+    newCustomersPrevCount,
+    lostCustomers,
+    lostCustomersPrevCount,
+    todayActivities,
+    overdueActivities,
+  } = data;
 
-  const { data: myProfile } = await supabase
-    .from("profiles")
-    .select("role, full_name")
-    .eq("id", user?.id ?? "")
-    .single();
+  // Cada card abre /dashboard/detalhe/<indicador> com o mesmo funil e período
+  const detail = (kpi: string, extra: Record<string, string> = {}) =>
+    `/dashboard/detalhe/${kpi}?${dashboardQuery(data, extra)}`;
 
-  // Vendedor só enxerga os próprios negócios; gestor e admin têm visão geral
-  // da equipe (docx "Estrutura Pipedrive" — permissões por papel).
-  const isVendedor = myProfile?.role === "vendedor";
-  const rawName = myProfile?.full_name?.trim() ?? "";
-  const firstName = rawName && !rawName.includes("@") ? rawName.split(" ")[0] : "";
+  const stalledPreview = stalledAll.slice(0, 6);
 
-  const today = new Date();
-  const { start: todayStart, end: todayEnd } = saoPauloDayBounds(today);
-
-  const { data: pipelines } = await supabase
-    .from("pipelines")
-    .select("id, name, is_default")
-    .order("name");
-
-  const selectedPipeline =
-    (params.pipeline && pipelines?.find((p) => p.id === params.pipeline)) ||
-    pipelines?.find((p) => p.is_default) ||
-    pipelines?.[0];
-  const pipelineId = selectedPipeline?.id;
-
-  const { from, to } = defaultTwelveMonthRange(today);
-  const fromParam = params.from || from;
-  const toParam = params.to || to;
-
-  let dealsQuery = supabase
-    .from("deals")
-    .select(
-      "id, title, value, status, stage_id, pipeline_id, organization_id, updated_at, closed_at, created_at",
-    );
-  if (pipelineId) dealsQuery = dealsQuery.eq("pipeline_id", pipelineId);
-  if (isVendedor && user) dealsQuery = dealsQuery.eq("owner_id", user.id);
-
-  let todayActivitiesQuery = supabase
-    .from("activities")
-    .select("id, subject, due_date, type, deal_id, deals ( title )")
-    .eq("done", false)
-    .gte("due_date", todayStart)
-    .lte("due_date", todayEnd)
-    .order("due_date");
-  if (isVendedor && user) todayActivitiesQuery = todayActivitiesQuery.eq("owner_id", user.id);
-
-  const [allDeals, todayActivitiesRes] = await Promise.all([
-    fetchAllRows((f, t) => dealsQuery.range(f, t)) as Promise<DealRow[]>,
-    todayActivitiesQuery,
-  ]);
-
-  const { data: stages } = pipelineId
-    ? await supabase
-        .from("pipeline_stages")
-        .select("id, name, order_index")
-        .eq("pipeline_id", pipelineId)
-        .order("order_index")
-    : { data: [] };
-
-  const todayActivities = (todayActivitiesRes.data ?? []) as unknown as {
-    id: string;
-    subject: string;
-    due_date: string | null;
-    type: string;
-    deal_id: string | null;
-    deals: { title: string } | null;
-  }[];
-
-  // --- Pipeline (negócios abertos) — retrato de agora ---
-  const openDeals = allDeals.filter((d) => d.status === "open");
-  const openValue = openDeals.reduce((sum, d) => sum + d.value, 0);
-  const stalledAll = openDeals.filter((d) => d.updated_at < isoDaysAgo(14));
-  const stalledDeals = [...stalledAll]
-    .sort((a, b) => new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime())
-    .slice(0, 6);
-
-  const funnelData = (stages ?? []).map((s) => ({
+  const funnelData = stages.map((s) => ({
+    id: s.id,
     stage: s.name,
     total: openDeals.filter((d) => d.stage_id === s.id).reduce((sum, d) => sum + d.value, 0),
   }));
 
-  // --- Período selecionado x período anterior de mesma duração ---
-  const fromMs = new Date(fromParam).getTime();
-  const toMs = new Date(toParam).getTime() + DAY - 1;
-  const span = toMs - fromMs + 1;
-  const prevFromMs = fromMs - span;
-  const prevToMs = fromMs - 1;
-  const between = (iso: string, a: number, b: number) => {
-    const t = new Date(iso).getTime();
-    return t >= a && t <= b;
-  };
-
-  function periodStats(a: number, b: number) {
-    const created = allDeals.filter((d) => between(d.created_at, a, b));
-    const won = allDeals.filter((d) => d.status === "won" && between(closedAt(d), a, b));
-    const lost = allDeals.filter((d) => d.status === "lost" && between(closedAt(d), a, b));
-    const closed = won.length + lost.length;
-    return {
-      created,
-      won,
-      lost,
-      wonValue: won.reduce((s, d) => s + d.value, 0),
-      winRate: closed > 0 ? won.length / closed : 0,
-    };
-  }
-  const current = periodStats(fromMs, toMs);
-  const previous = periodStats(prevFromMs, prevToMs);
-
   const months = monthRange(fromParam, toParam);
   const monthlyData = months.map((m) => ({
+    key: m,
     month: monthLabel(m),
     criados: current.created.filter((d) => monthKey(d.created_at) === m).length,
     ganhos: current.won.filter((d) => monthKey(closedAt(d)) === m).length,
     perdidos: current.lost.filter((d) => monthKey(closedAt(d)) === m).length,
   }));
 
-  // Novos clientes: organizações cujo primeiro negócio ganho (em toda a
-  // história visível para este usuário) caiu dentro do período.
-  const firstWonByOrg = new Map<string, number>();
-  for (const d of allDeals) {
-    if (d.status !== "won" || !d.organization_id) continue;
-    const t = new Date(closedAt(d)).getTime();
-    const cur = firstWonByOrg.get(d.organization_id);
-    if (cur == null || t < cur) firstWonByOrg.set(d.organization_id, t);
-  }
-  const firstWins = Array.from(firstWonByOrg.values());
-  const newCustomers = firstWins.filter((t) => t >= fromMs && t <= toMs).length;
-  const newCustomersPrev = firstWins.filter((t) => t >= prevFromMs && t <= prevToMs).length;
-
-  // Clientes perdidos: organizações que perderam um negócio no período e não
-  // têm nenhum negócio aberto hoje (ou seja, não seguem ativas no pipeline).
-  const orgsWithOpenDeal = new Set(
-    openDeals.filter((d) => d.organization_id).map((d) => d.organization_id as string),
-  );
-  const lostCustomers = (lost: DealRow[]) =>
-    new Set(
-      lost
-        .filter((d) => d.organization_id && !orgsWithOpenDeal.has(d.organization_id))
-        .map((d) => d.organization_id as string),
-    ).size;
-  const lostCustomersCount = lostCustomers(current.lost);
-  const lostCustomersPrev = lostCustomers(previous.lost);
-
   const periodLabel = `${formatDate(`${fromParam}T12:00:00`)} – ${formatDate(`${toParam}T12:00:00`)}`;
   const vsPrevious = "comparado ao período anterior de mesma duração";
+  const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
   return (
     <div className="flex flex-col gap-6">
@@ -218,32 +86,29 @@ export default async function DashboardPage({
         title={firstName ? `Olá, ${firstName}` : "Olá!"}
         description={
           isVendedor
-            ? "Visão dos seus negócios e atividades de hoje."
-            : "Visão geral do funil de toda a equipe."
+            ? "Visão dos seus negócios e atividades de hoje. Clique em um card para ver quais registros o compõem."
+            : "Visão geral do funil de toda a equipe. Clique em um card para ver quais registros o compõem."
         }
         actions={
-          <DashboardFilters
-            pipelines={pipelines ?? []}
-            pipelineId={pipelineId ?? ""}
-            from={fromParam}
-            to={toParam}
-          />
+          <DashboardFilters pipelines={pipelines} pipelineId={pipelineId ?? ""} from={fromParam} to={toParam} />
         }
       />
 
-      <section aria-label="Agora" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section aria-label="Agora" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <KpiCard
           label="Pipeline em aberto"
           icon={Handshake}
           value={formatCurrencyBRL(openValue)}
-          hint={`${openDeals.length} ${openDeals.length === 1 ? "negócio" : "negócios"}`}
+          hint={plural(openDeals.length, "negócio", "negócios")}
           period="agora"
+          href={detail("pipeline")}
         />
         <KpiCard
           label="Ticket médio em aberto"
           icon={TrendingUp}
           value={formatCurrencyBRL(openDeals.length ? openValue / openDeals.length : 0)}
           period="agora"
+          href={detail("ticket")}
         />
         <KpiCard
           label="Atividades hoje"
@@ -251,13 +116,23 @@ export default async function DashboardPage({
           value={String(todayActivities.length)}
           hint="pendentes"
           period="hoje"
+          href={detail("atividades-hoje")}
+        />
+        <KpiCard
+          label="Atividades atrasadas"
+          icon={CalendarX}
+          tone={overdueActivities.length > 0 ? "danger" : "default"}
+          value={String(overdueActivities.length)}
+          hint="pendentes, de dias anteriores"
+          href={detail("atividades-atrasadas")}
         />
         <KpiCard
           label="Negócios parados"
           icon={AlertTriangle}
           tone={stalledAll.length > 0 ? "warning" : "default"}
           value={String(stalledAll.length)}
-          hint="sem atualização há 14+ dias"
+          hint={`sem atualização há ${STALLED_DAYS}+ dias`}
+          href={detail("parados")}
         />
       </section>
 
@@ -270,8 +145,9 @@ export default async function DashboardPage({
             label="Valor ganho"
             icon={Trophy}
             value={formatCurrencyBRL(current.wonValue)}
-            hint={`${current.won.length} ${current.won.length === 1 ? "negócio" : "negócios"}`}
+            hint={plural(current.won.length, "negócio", "negócios")}
             delta={{ value: change(current.wonValue, previous.wonValue), label: vsPrevious }}
+            href={detail("ganhos")}
           />
           <KpiCard
             label="Taxa de conversão"
@@ -279,44 +155,50 @@ export default async function DashboardPage({
             value={`${(current.winRate * 100).toFixed(0)}%`}
             hint="ganhos ÷ fechados"
             delta={{ value: current.winRate - previous.winRate, unit: "pp", label: vsPrevious }}
+            href={detail("conversao")}
           />
           <KpiCard
             label="Negócios criados"
             icon={PlusCircle}
             value={String(current.created.length)}
             delta={{ value: change(current.created.length, previous.created.length), label: vsPrevious }}
+            href={detail("criados")}
           />
           <KpiCard
             label="Novos clientes"
             icon={UserPlus}
-            value={String(newCustomers)}
+            value={String(newCustomers.length)}
             hint="1ª compra"
-            delta={{ value: change(newCustomers, newCustomersPrev), label: vsPrevious }}
+            delta={{ value: change(newCustomers.length, newCustomersPrevCount), label: vsPrevious }}
+            href={detail("novos-clientes")}
           />
           <KpiCard
             label="Clientes perdidos"
             icon={UserMinus}
-            value={String(lostCustomersCount)}
+            value={String(lostCustomers.length)}
             hint="sem pipeline aberto"
             delta={{
-              value: change(lostCustomersCount, lostCustomersPrev),
+              value: change(lostCustomers.length, lostCustomersPrevCount),
               positiveIsGood: false,
               label: vsPrevious,
             }}
+            href={detail("clientes-perdidos")}
           />
         </div>
       </section>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <StageFunnelChart data={funnelData} />
-        <MonthlyTrendChart data={monthlyData} />
+        <StageFunnelChart data={funnelData} hrefForStage={(id) => detail("etapa", { stage: id })} />
+        <MonthlyTrendChart data={monthlyData} hrefForMonth={(key) => detail("mes", { month: key })} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader className="flex-row items-center gap-2 pb-3">
             <CardTitle>
-              Atividades de hoje
+              <Link href={detail("atividades-hoje")} className="hover:text-primary hover:underline">
+                Atividades de hoje
+              </Link>
               <span className="numeric ml-1.5 font-normal text-muted-foreground">{todayActivities.length}</span>
             </CardTitle>
             <CardAction>
@@ -339,12 +221,12 @@ export default async function DashboardPage({
                 <li key={a.id} className="flex items-center justify-between gap-3 px-5 py-2.5 text-sm">
                   <span className="flex min-w-0 flex-col">
                     <span className="truncate font-medium text-foreground">{a.subject}</span>
-                    {a.deals?.title && a.deal_id && (
+                    {a.deal_title && a.deal_id && (
                       <Link
                         href={`/deals/${a.deal_id}`}
                         className="truncate text-caption text-muted-foreground hover:text-primary hover:underline"
                       >
-                        {a.deals.title}
+                        {a.deal_title}
                       </Link>
                     )}
                   </span>
@@ -353,6 +235,7 @@ export default async function DashboardPage({
                       new Date(a.due_date).toLocaleTimeString("pt-BR", {
                         hour: "2-digit",
                         minute: "2-digit",
+                        timeZone: "America/Sao_Paulo",
                       })}
                   </span>
                 </li>
@@ -362,20 +245,56 @@ export default async function DashboardPage({
         </Card>
 
         <RelatedList
-          title={stalledAll.length > stalledDeals.length ? `Negócios parados há mais tempo (de ${stalledAll.length})` : "Negócios parados"}
+          title={
+            stalledAll.length > stalledPreview.length
+              ? `Negócios parados há mais tempo (de ${stalledAll.length})`
+              : "Negócios parados"
+          }
           icon={Handshake}
           emptyText="Nenhum negócio parado. Bom trabalho!"
-          items={stalledDeals.map((d) => ({
+          action={
+            stalledAll.length > 0 ? (
+              <Link href={detail("parados")} className="text-caption font-medium text-primary hover:underline">
+                Ver todos
+              </Link>
+            ) : undefined
+          }
+          items={stalledPreview.map((d) => ({
             id: d.id,
             href: `/deals/${d.id}`,
             title: d.title,
             subtitle: `Atualizado em ${formatDate(d.updated_at)}`,
-            trailing: (
-              <span className="numeric text-caption text-muted-foreground">{formatCurrencyBRL(d.value)}</span>
-            ),
+            trailing: <span className="numeric text-caption text-muted-foreground">{formatCurrencyBRL(d.value)}</span>,
           }))}
         />
       </div>
+
+      {overdueActivities.length > 0 && (
+        <RelatedList
+          title="Atividades atrasadas (mais antigas primeiro)"
+          icon={CalendarX}
+          emptyText="Nenhuma atividade atrasada"
+          action={
+            <Link
+              href={detail("atividades-atrasadas")}
+              className="text-caption font-medium text-primary hover:underline"
+            >
+              Ver todas ({overdueActivities.length})
+            </Link>
+          }
+          items={overdueActivities.slice(0, 6).map((a) => ({
+            id: a.id,
+            href: a.deal_id ? `/deals/${a.deal_id}` : "/activities",
+            title: a.subject,
+            subtitle: [a.deal_title, a.owner_name].filter(Boolean).join(" · ") || null,
+            trailing: (
+              <span className="numeric text-caption font-medium text-destructive">
+                {a.due_date ? formatOverdue(a.due_date)?.label : ""}
+              </span>
+            ),
+          }))}
+        />
+      )}
     </div>
   );
 }

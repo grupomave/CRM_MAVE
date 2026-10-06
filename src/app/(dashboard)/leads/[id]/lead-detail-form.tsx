@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
+import { MaskedInput } from "@/components/ui/masked-inputs";
+import { WhatsAppButton } from "@/components/whatsapp-button";
 import { confirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Dialog,
@@ -27,13 +29,22 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { friendlyError, toast } from "@/lib/toast";
 import { LEAD_STATUS_LABEL } from "@/lib/filters/leads";
+import { isValidPhoneBR } from "@/lib/masks";
+import type { CatalogItem } from "@/lib/data/catalogs";
+import type { OwnerOption } from "@/lib/data/lists";
 import type { LeadStatus } from "@/lib/supabase/types";
+
+const NONE = "__none__";
 
 interface Lead {
   id: string;
   name: string;
   contact_info: string | null;
   source: string | null;
+  source_id: string | null;
+  phone: string | null;
+  mobile: string | null;
+  email: string | null;
   status: LeadStatus;
   converted_deal_id: string | null;
   owner_id: string;
@@ -48,9 +59,15 @@ interface Pipeline {
 export function LeadDetailForm({
   lead,
   pipelines,
+  sources,
+  owners,
+  canReassign,
 }: {
   lead: Lead;
   pipelines: Pipeline[];
+  sources: CatalogItem[];
+  owners: OwnerOption[];
+  canReassign: boolean;
 }) {
   const [form, setForm] = useState(lead);
   const [saving, setSaving] = useState(false);
@@ -83,11 +100,22 @@ export function LeadDetailForm({
   }
 
   const nameError = !form.name.trim() ? "Informe o nome do lead" : undefined;
+  // Só valida o que foi alterado (dados importados antigos não bloqueiam o salvar)
+  const phoneError = (value: string | null, original: string | null) =>
+    value !== original && value && !isValidPhoneBR(value) ? "Telefone incompleto — use DDD + número" : undefined;
+  const errors = {
+    phone: phoneError(form.phone, lead.phone),
+    mobile: phoneError(form.mobile, lead.mobile),
+    email:
+      form.email !== lead.email && form.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email)
+        ? "E-mail inválido"
+        : undefined,
+  };
   const dirty = JSON.stringify(form) !== JSON.stringify(lead);
 
   async function onSave() {
     setTouched(true);
-    if (nameError) return;
+    if (nameError || errors.phone || errors.mobile || errors.email) return;
     setSaving(true);
     const supabase = createClient();
     const { error } = await supabase
@@ -95,8 +123,13 @@ export function LeadDetailForm({
       .update({
         name: form.name.trim(),
         contact_info: form.contact_info,
-        source: form.source,
+        source_id: form.source_id,
+        source: sources.find((s) => s.id === form.source_id)?.name ?? form.source,
+        phone: form.phone || null,
+        mobile: form.mobile || null,
+        email: form.email?.trim() || null,
         status: form.status,
+        ...(canReassign ? { owner_id: form.owner_id } : {}),
       })
       .eq("id", lead.id);
     setSaving(false);
@@ -140,8 +173,8 @@ export function LeadDetailForm({
         currency: "BRL",
         pipeline_id: pipelineId,
         stage_id: stageId,
-        owner_id: lead.owner_id,
-        source: form.source,
+        owner_id: form.owner_id,
+        source: sources.find((s) => s.id === form.source_id)?.name ?? form.source,
         status: "open",
       })
       .select("id")
@@ -156,8 +189,14 @@ export function LeadDetailForm({
     const [{ error: noteError }, { error: leadError }] = await Promise.all([
       supabase.from("notes").insert({
         deal_id: deal.id,
-        author_id: lead.owner_id,
-        content: `Convertido do lead "${lead.name}"${form.contact_info ? ` — contato: ${form.contact_info}` : ""}.`,
+        author_id: form.owner_id,
+        content: `Convertido do lead "${lead.name}"${
+          [form.mobile && `smartphone: ${form.mobile}`, form.phone && `telefone: ${form.phone}`, form.email && `e-mail: ${form.email}`, form.contact_info && `contato: ${form.contact_info}`]
+            .filter(Boolean)
+            .join(" · ")
+            ? ` — ${[form.mobile && `smartphone: ${form.mobile}`, form.phone && `telefone: ${form.phone}`, form.email && `e-mail: ${form.email}`, form.contact_info && `contato: ${form.contact_info}`].filter(Boolean).join(" · ")}`
+            : ""
+        }.`,
       }),
       supabase.from("leads").update({ status: "converted", converted_deal_id: deal.id }).eq("id", lead.id),
     ]);
@@ -201,20 +240,66 @@ export function LeadDetailForm({
             <FormField label="Nome" htmlFor="lead-name" required error={touched ? nameError : undefined}>
               <Input id="lead-name" value={form.name} onChange={(e) => set("name", e.target.value)} />
             </FormField>
-            <FormField label="Contato" htmlFor="lead-contact" hint="E-mail ou telefone">
+            <FormField label="Telefone" htmlFor="lead-phone" error={touched ? errors.phone : undefined}>
+              <MaskedInput
+                id="lead-phone"
+                mask="phone"
+                value={form.phone ?? ""}
+                onChange={(e) => set("phone", e.target.value || null)}
+              />
+            </FormField>
+            <FormField label="Smartphone" htmlFor="lead-mobile" hint="Celular / WhatsApp" error={touched ? errors.mobile : undefined}>
+              <div className="flex items-center gap-2">
+                <MaskedInput
+                  id="lead-mobile"
+                  mask="phone"
+                  value={form.mobile ?? ""}
+                  onChange={(e) => set("mobile", e.target.value || null)}
+                />
+                <WhatsAppButton phone={form.mobile} />
+              </div>
+            </FormField>
+            <FormField label="E-mail" htmlFor="lead-email" error={touched ? errors.email : undefined}>
               <Input
-                id="lead-contact"
-                value={form.contact_info ?? ""}
-                onChange={(e) => set("contact_info", e.target.value || null)}
+                id="lead-email"
+                type="email"
+                value={form.email ?? ""}
+                onChange={(e) => set("email", e.target.value || null)}
               />
             </FormField>
             <FormField label="Origem" htmlFor="lead-source">
-              <Input
-                id="lead-source"
-                placeholder="Site, indicação, evento..."
-                value={form.source ?? ""}
-                onChange={(e) => set("source", e.target.value || null)}
-              />
+              <Select
+                value={form.source_id ?? NONE}
+                onValueChange={(v) => set("source_id", v === NONE ? null : v)}
+              >
+                <SelectTrigger id="lead-source">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>
+                    {form.source && !form.source_id ? `${form.source} (não cadastrada)` : "Não informada"}
+                  </SelectItem>
+                  {sources.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FormField>
+            <FormField label="Responsável" htmlFor="lead-owner">
+              <Select value={form.owner_id} onValueChange={(v) => set("owner_id", v)} disabled={!canReassign}>
+                <SelectTrigger id="lead-owner">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {owners.map((o) => (
+                    <SelectItem key={o.id} value={o.id}>
+                      {o.full_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </FormField>
             <FormField label="Status" htmlFor="lead-status">
               <Select value={form.status} onValueChange={(v) => set("status", v as LeadStatus)}>

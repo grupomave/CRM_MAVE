@@ -66,6 +66,12 @@ export interface Database {
           phone: string | null;
           services_of_interest: string | null;
           notes: string | null;
+          segment_id: string | null;
+          address_number: string | null;
+          address_complement: string | null;
+          neighborhood: string | null;
+          zip_code: string | null;
+          email: string | null;
         };
         Insert: Partial<Database["public"]["Tables"]["organizations"]["Row"]> & {
           name: string;
@@ -160,10 +166,56 @@ export interface Database {
           record_id: string | null;
           record_label: string | null;
           changes: Record<string, unknown>;
+          deal_id: string | null;
+          organization_id: string | null;
+          contact_id: string | null;
+          owner_id: string | null;
         };
         // Gravado por gatilhos e pelas server actions de usuários (service role)
         Insert: Partial<Database["public"]["Tables"]["audit_logs"]["Row"]>;
         Update: never;
+        Relationships: [];
+      };
+      lead_sources: {
+        Row: {
+          id: string;
+          name: string;
+          is_active: boolean;
+          order_index: number;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["lead_sources"]["Row"]> & {
+          name: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["lead_sources"]["Row"]>;
+        Relationships: [];
+      };
+      segments: {
+        Row: {
+          id: string;
+          name: string;
+          is_active: boolean;
+          order_index: number;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["segments"]["Row"]> & {
+          name: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["segments"]["Row"]>;
+        Relationships: [];
+      };
+      digest_settings: {
+        Row: {
+          id: number;
+          enabled: boolean;
+          include_today: boolean;
+          include_overdue: boolean;
+          notify_sellers: boolean;
+          notify_managers: boolean;
+          updated_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["digest_settings"]["Row"]>;
+        Update: Partial<Database["public"]["Tables"]["digest_settings"]["Row"]>;
         Relationships: [];
       };
       lost_reasons: {
@@ -214,6 +266,10 @@ export interface Database {
           converted_deal_id: string | null;
           owner_id: string;
           created_at: string;
+          source_id: string | null;
+          phone: string | null;
+          mobile: string | null;
+          email: string | null;
         };
         Insert: Partial<Database["public"]["Tables"]["leads"]["Row"]> & {
           name: string;

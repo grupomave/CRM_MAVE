@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { NAV_GROUPS, SETTINGS_NAV_ITEM, isNavItemActive, type NavItem } from "@/lib/nav";
+import { NAV_GROUPS, SETTINGS_NAV_ITEM, isNavItemActive, navItemVisible, type NavItem } from "@/lib/nav";
+import type { UserRole } from "@/lib/supabase/types";
 import { SimpleTooltip } from "@/components/ui/tooltip";
 
 function NavLink({
@@ -54,9 +55,11 @@ function NavLink({
 export function SidebarNav({
   collapsed = false,
   onNavigate,
+  role,
 }: {
   collapsed?: boolean;
   onNavigate?: () => void;
+  role?: UserRole | null;
 }) {
   const pathname = usePathname();
 
@@ -73,7 +76,7 @@ export function SidebarNav({
                   {group.label}
                 </p>
               ))}
-            {group.items.map((item) => (
+            {group.items.filter((item) => navItemVisible(item, role)).map((item) => (
               <NavLink
                 key={item.href}
                 item={item}

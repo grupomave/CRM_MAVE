@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { LeadDetailForm } from "./lead-detail-form";
 import { PageHeader } from "@/components/ui/page-header";
+import { loadCatalog, selectableItems } from "@/lib/data/catalogs";
+import { canReassignOwner, getCurrentUser, loadOwners } from "@/lib/data/lists";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -31,6 +33,12 @@ export default async function LeadDetailPage({
     .select("id, name, is_default")
     .order("name");
 
+  const [sourceCatalog, owners, me] = await Promise.all([
+    loadCatalog(supabase, "lead_sources"),
+    loadOwners(supabase),
+    getCurrentUser(),
+  ]);
+
   return (
     <div className="mx-auto flex w-full max-w-detail flex-col gap-6">
       <PageHeader
@@ -38,7 +46,13 @@ export default async function LeadDetailPage({
         breadcrumbs={[{ label: "Leads", href: "/leads" }, { label: lead.name }]}
       />
 
-      <LeadDetailForm lead={lead as any} pipelines={pipelines ?? []} />
+      <LeadDetailForm
+        lead={lead as any}
+        pipelines={pipelines ?? []}
+        sources={selectableItems(sourceCatalog, lead.source_id)}
+        owners={owners.filter((o) => o.is_active || o.id === lead.owner_id)}
+        canReassign={canReassignOwner(me?.role)}
+      />
     </div>
   );
 }

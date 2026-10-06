@@ -1,5 +1,6 @@
 "use client";
 
+import type { UserRole } from "@/lib/supabase/types";
 import { useState } from "react";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,9 @@ export function Header({
   fullName,
   email,
   avatarUrl,
+  role,
 }: {
+  role?: UserRole | null;
   userId: string;
   fullName: string;
   email: string;
@@ -38,7 +41,7 @@ export function Header({
               <Logo />
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto">
-              <SidebarNav onNavigate={() => setMobileOpen(false)} />
+              <SidebarNav onNavigate={() => setMobileOpen(false)} role={role} />
             </div>
           </SheetContent>
         </Sheet>
@@ -48,7 +51,7 @@ export function Header({
       </div>
 
       <div className="flex min-w-0 flex-1 items-center">
-        <CommandPalette />
+        <CommandPalette role={role} />
       </div>
 
       <div className="flex items-center gap-1 sm:gap-2">

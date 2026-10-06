@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { exportWorkbook, type ExcelSheet } from "@/lib/export/excel";
 import { exportPdf, type PdfSection } from "@/lib/export/pdf";
+import { exportHtml } from "@/lib/export/html";
 import { captureChartsByIds, loadImageAsDataUrl } from "@/lib/export/capture";
 
 const LOGO_URL = "/logo-mark.png";
@@ -43,7 +44,7 @@ export function ExportButton({
   variant = "outline",
   size = "default",
 }: ExportButtonProps) {
-  const [loading, setLoading] = useState<"excel" | "pdf" | null>(null);
+  const [loading, setLoading] = useState<"excel" | "pdf" | "html" | null>(null);
 
   function neededChartIds() {
     const ids = new Set<string>();
@@ -85,6 +86,16 @@ export function ExportButton({
     }
   }
 
+  async function onHtml() {
+    setLoading("html");
+    try {
+      const logoDataUrl = await loadImageAsDataUrl(LOGO_URL).catch(() => undefined);
+      exportHtml(filename, pdfTitle, pdfSections, { subtitle: pdfSubtitle, logoDataUrl });
+    } finally {
+      setLoading(null);
+    }
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -96,6 +107,7 @@ export function ExportButton({
       <DropdownMenuContent align="end">
         <DropdownMenuItem onClick={onExcel}>Excel (.xlsx)</DropdownMenuItem>
         <DropdownMenuItem onClick={onPdf}>PDF</DropdownMenuItem>
+        <DropdownMenuItem onClick={onHtml}>HTML interativo (apresentação)</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

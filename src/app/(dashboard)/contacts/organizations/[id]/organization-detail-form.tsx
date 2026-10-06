@@ -19,6 +19,10 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { friendlyError, toast } from "@/lib/toast";
 import { WhatsAppButton } from "@/components/whatsapp-button";
+import { CnpjLookupButton, useCnpjLookup } from "@/components/forms/cnpj-lookup";
+import { maskCEP } from "@/lib/masks";
+import type { CatalogItem } from "@/lib/data/catalogs";
+import type { CnpjData } from "@/lib/cnpj";
 import { BR_STATES, isValidCNPJ, isValidPhoneBR, maskCNPJ, maskPhoneInput } from "@/lib/masks";
 
 const NONE = "__none__";
@@ -29,6 +33,12 @@ interface Organization {
   legal_name: string | null;
   cnpj: string | null;
   sector: string | null;
+  segment_id: string | null;
+  address_number: string | null;
+  address_complement: string | null;
+  neighborhood: string | null;
+  zip_code: string | null;
+  email: string | null;
   company_size: string | null;
   nature: "publica" | "privada" | null;
   city: string | null;
@@ -45,9 +55,11 @@ interface Organization {
 export function OrganizationDetailForm({
   organization,
   canDelete,
+  segments,
 }: {
   organization: Organization;
   canDelete: boolean;
+  segments: CatalogItem[];
 }) {
   const [form, setForm] = useState(organization);
   const [saving, setSaving] = useState(false);
@@ -57,6 +69,25 @@ export function OrganizationDetailForm({
   function set<K extends keyof Organization>(key: K, value: Organization[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
+
+  // Dados trazidos da Receita Federal pela consulta de CNPJ (só sobrescreve o que veio preenchido)
+  function applyCnpjData(d: CnpjData) {
+    setForm((prev) => ({
+      ...prev,
+      legal_name: d.legal_name ?? prev.legal_name,
+      name: d.name ?? prev.name,
+      address: d.address ?? prev.address,
+      address_number: d.address_number ?? prev.address_number,
+      address_complement: d.address_complement ?? prev.address_complement,
+      neighborhood: d.neighborhood ?? prev.neighborhood,
+      zip_code: d.zip_code ?? prev.zip_code,
+      city: d.city ?? prev.city,
+      state: d.state ?? prev.state,
+      email: d.email ?? prev.email,
+      phone: d.phone ?? prev.phone,
+    }));
+  }
+  const cnpjLookup = useCnpjLookup(applyCnpjData);
 
   const errors = {
     name: !form.name.trim() ? "Informe o nome fantasia" : undefined,
@@ -133,17 +164,43 @@ export function OrganizationDetailForm({
               onChange={(e) => set("legal_name", e.target.value || null)}
             />
           </FormField>
-          <FormField label="CNPJ" htmlFor="org-cnpj" error={errors.cnpj}>
-            <Input
-              id="org-cnpj"
-              inputMode="numeric"
-              value={maskCNPJ(form.cnpj ?? "")}
-              onChange={(e) => set("cnpj", maskCNPJ(e.target.value) || null)}
-              placeholder="00.000.000/0000-00"
-            />
+          <FormField
+            label="CNPJ"
+            htmlFor="org-cnpj"
+            error={errors.cnpj}
+            hint="Ao digitar o CNPJ completo, os dados da empresa são buscados na Receita Federal."
+          >
+            <div className="flex gap-1">
+              <Input
+                id="org-cnpj"
+                inputMode="numeric"
+                value={maskCNPJ(form.cnpj ?? "")}
+                onChange={(e) => {
+                  const masked = maskCNPJ(e.target.value);
+                  set("cnpj", masked || null);
+                  if (masked !== organization.cnpj) cnpjLookup.autoLookup(masked);
+                }}
+                placeholder="00.000.000/0000-00"
+              />
+              <CnpjLookupButton onClick={() => cnpjLookup.lookup(form.cnpj)} loading={cnpjLookup.loading} />
+            </div>
           </FormField>
-          <FormField label="Setor" htmlFor="org-sector">
-            <Input id="org-sector" value={form.sector ?? ""} onChange={(e) => set("sector", e.target.value || null)} />
+          <FormField label="Segmento" htmlFor="org-segment">
+            <Select value={form.segment_id ?? NONE} onValueChange={(v) => set("segment_id", v === NONE ? null : v)}>
+              <SelectTrigger id="org-segment">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE}>
+                  {form.sector && !form.segment_id ? `${form.sector} (não cadastrado)` : "Não informado"}
+                </SelectItem>
+                {segments.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </FormField>
           <FormField label="Porte" htmlFor="org-size" hint="Número aproximado de funcionários">
             <Input
@@ -231,14 +288,54 @@ export function OrganizationDetailForm({
           </FormField>
         </div>
 
-        <FormField label="Endereço" htmlFor="org-address">
-          <Input
-            id="org-address"
-            placeholder="Rua, número, bairro"
-            value={form.address ?? ""}
-            onChange={(e) => set("address", e.target.value || null)}
-          />
-        </FormField>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-6">
+          <FormField label="Endereço" htmlFor="org-address" className="sm:col-span-4">
+            <Input
+              id="org-address"
+              placeholder="Rua, avenida..."
+              value={form.address ?? ""}
+              onChange={(e) => set("address", e.target.value || null)}
+            />
+          </FormField>
+          <FormField label="Nº" htmlFor="org-number" className="sm:col-span-2">
+            <Input
+              id="org-number"
+              value={form.address_number ?? ""}
+              onChange={(e) => set("address_number", e.target.value || null)}
+            />
+          </FormField>
+          <FormField label="Complemento" htmlFor="org-complement" className="sm:col-span-2">
+            <Input
+              id="org-complement"
+              value={form.address_complement ?? ""}
+              onChange={(e) => set("address_complement", e.target.value || null)}
+            />
+          </FormField>
+          <FormField label="Bairro" htmlFor="org-neighborhood" className="sm:col-span-2">
+            <Input
+              id="org-neighborhood"
+              value={form.neighborhood ?? ""}
+              onChange={(e) => set("neighborhood", e.target.value || null)}
+            />
+          </FormField>
+          <FormField label="CEP" htmlFor="org-zip" className="sm:col-span-2">
+            <Input
+              id="org-zip"
+              inputMode="numeric"
+              placeholder="00000-000"
+              value={form.zip_code ?? ""}
+              onChange={(e) => set("zip_code", maskCEP(e.target.value) || null)}
+            />
+          </FormField>
+          <FormField label="E-mail" htmlFor="org-email" className="sm:col-span-6">
+            <Input
+              id="org-email"
+              type="email"
+              value={form.email ?? ""}
+              onChange={(e) => set("email", e.target.value || null)}
+            />
+          </FormField>
+        </div>
 
         <FormField label="Serviços de interesse" htmlFor="org-services">
           <Input

@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import type { UserRole } from "@/lib/supabase/types";
 import {
   LayoutDashboard,
   KanbanSquare,
@@ -10,12 +11,15 @@ import {
   Zap,
   BarChart3,
   Settings,
+  Workflow,
 } from "lucide-react";
 
 export interface NavItem {
   label: string;
   href: string;
   icon: LucideIcon;
+  /** Quando definido, só estes papéis veem o item no menu */
+  roles?: UserRole[];
 }
 
 export interface NavGroup {
@@ -50,6 +54,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: "Documentos", href: "/documents", icon: FileText },
       { label: "Automações", href: "/automations", icon: Zap },
+      { label: "Workflow", href: "/workflow", icon: Workflow, roles: ["admin", "gestor"] },
       { label: "Relatórios", href: "/reports", icon: BarChart3 },
     ],
   },
@@ -77,4 +82,9 @@ export function isNavItemActive(pathname: string, href: string) {
   // /deals/[id] pertence ao módulo Negócios (/pipeline)
   if (href === "/pipeline" && pathname.startsWith("/deals/")) return true;
   return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+/** Itens do menu visíveis para o papel do usuário */
+export function navItemVisible(item: NavItem, role: UserRole | null | undefined) {
+  return !item.roles || (role != null && item.roles.includes(role));
 }

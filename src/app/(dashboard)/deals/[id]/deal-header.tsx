@@ -208,7 +208,7 @@ export function DealHeader({
             {isOpen && alerts.overdueDays && (
               <Badge variant="destructive">
                 <CalendarX />
-                Atividade atrasada há {alerts.overdueDays} {alerts.overdueDays === 1 ? "dia" : "dias"}
+                Atividade atrasada {alerts.overdueLabel}
               </Badge>
             )}
             {isOpen && alerts.noUpcomingActivity && (

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Plus } from "lucide-react";
@@ -18,26 +18,58 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FormField } from "@/components/ui/form-field";
+import { MaskedInput } from "@/components/ui/masked-inputs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createClient } from "@/lib/supabase/client";
 import { friendlyError, toast } from "@/lib/toast";
+import { isValidPhoneBR } from "@/lib/masks";
+import type { CatalogItem } from "@/lib/data/catalogs";
+import type { OwnerOption } from "@/lib/data/lists";
+
+const NONE = "__none__";
+const optionalPhone = z
+  .string()
+  .optional()
+  .refine((v) => !v || isValidPhoneBR(v), "Telefone incompleto — use DDD + número");
 
 const schema = z.object({
   name: z.string().trim().min(1, "Informe o nome do lead"),
-  contact_info: z.string().optional(),
-  source: z.string().optional(),
+  source_id: z.string().optional(),
+  phone: optionalPhone,
+  mobile: optionalPhone,
+  email: z
+    .string()
+    .trim()
+    .optional()
+    .refine((v) => !v || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v), "E-mail inválido"),
+  owner_id: z.string().min(1, "Selecione o responsável"),
 });
 
 type FormValues = z.infer<typeof schema>;
 
-export function LeadsToolbar() {
+export function LeadsToolbar({
+  sources,
+  owners,
+  currentUserId,
+  canReassign,
+}: {
+  sources: CatalogItem[];
+  owners: OwnerOption[];
+  currentUserId: string;
+  canReassign: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
   const {
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors, isSubmitting },
-  } = useForm<FormValues>({ resolver: zodResolver(schema) });
+  } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: { owner_id: currentUserId },
+  });
 
   async function onSubmit(values: FormValues) {
     const supabase = createClient();
@@ -49,12 +81,16 @@ export function LeadsToolbar() {
       return;
     }
 
+    const source = sources.find((s) => s.id === values.source_id);
     const { error } = await supabase.from("leads").insert({
       name: values.name,
-      contact_info: values.contact_info || null,
-      source: values.source || null,
+      source_id: source?.id ?? null,
+      source: source?.name ?? null,
+      phone: values.phone || null,
+      mobile: values.mobile || null,
+      email: values.email || null,
       status: "new",
-      owner_id: user.id,
+      owner_id: canReassign ? values.owner_id : user.id,
     });
 
     if (error) {
@@ -63,7 +99,7 @@ export function LeadsToolbar() {
     }
 
     toast.success("Lead criado", { description: values.name });
-    reset();
+    reset({ owner_id: currentUserId });
     setOpen(false);
     router.refresh();
   }
@@ -87,12 +123,63 @@ export function LeadsToolbar() {
           <FormField label="Nome" htmlFor="lead-name" required error={errors.name?.message}>
             <Input id="lead-name" autoFocus placeholder="Nome da pessoa ou empresa" {...register("name")} />
           </FormField>
-          <FormField label="Contato" htmlFor="lead-contact" hint="E-mail ou telefone">
-            <Input id="lead-contact" placeholder="nome@empresa.com.br ou (11) 99999-9999" {...register("contact_info")} />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <FormField label="Telefone" htmlFor="lead-phone" error={errors.phone?.message}>
+              <MaskedInput id="lead-phone" mask="phone" {...register("phone")} />
+            </FormField>
+            <FormField label="Smartphone" htmlFor="lead-mobile" hint="Celular / WhatsApp" error={errors.mobile?.message}>
+              <MaskedInput id="lead-mobile" mask="phone" {...register("mobile")} />
+            </FormField>
+          </div>
+          <FormField label="E-mail" htmlFor="lead-email" error={errors.email?.message}>
+            <Input id="lead-email" type="email" placeholder="nome@empresa.com.br" {...register("email")} />
           </FormField>
-          <FormField label="Origem" htmlFor="lead-source">
-            <Input id="lead-source" placeholder="Site, indicação, evento..." {...register("source")} />
-          </FormField>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <FormField label="Origem" htmlFor="lead-source">
+              <Controller
+                control={control}
+                name="source_id"
+                render={({ field }) => (
+                  <Select
+                    value={field.value || NONE}
+                    onValueChange={(v) => field.onChange(v === NONE ? "" : v)}
+                  >
+                    <SelectTrigger id="lead-source">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NONE}>Não informada</SelectItem>
+                      {sources.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </FormField>
+            <FormField label="Responsável" htmlFor="lead-owner" required error={errors.owner_id?.message}>
+              <Controller
+                control={control}
+                name="owner_id"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange} disabled={!canReassign}>
+                    <SelectTrigger id="lead-owner">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {owners.map((o) => (
+                        <SelectItem key={o.id} value={o.id}>
+                          {o.full_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </FormField>
+          </div>
           <DialogFooter>
             <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
               Cancelar

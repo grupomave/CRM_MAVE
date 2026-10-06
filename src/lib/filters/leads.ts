@@ -13,7 +13,12 @@ export interface LeadRow {
   id: string;
   name: string;
   contact_info: string | null;
+  /** Nome da origem cadastrada (ou o texto antigo, se o lead ainda não foi vinculado) */
   source: string | null;
+  source_id: string | null;
+  phone: string | null;
+  mobile: string | null;
+  email: string | null;
   status: LeadStatus;
   created_at: string;
   owner_id: string;
@@ -68,7 +73,7 @@ export function applyLeadFilters(rows: LeadRow[], f: LeadFilters): LeadRow[] {
     if (f.status !== "all" && l.status !== f.status) return false;
     if (f.source && l.source !== f.source) return false;
     if (f.owner && l.owner_id !== f.owner) return false;
-    return matchesSearch(f.q, l.name, l.contact_info, l.source);
+    return matchesSearch(f.q, l.name, l.contact_info, l.source, l.phone, l.mobile, l.email);
   });
 
   const value = (l: LeadRow) => {

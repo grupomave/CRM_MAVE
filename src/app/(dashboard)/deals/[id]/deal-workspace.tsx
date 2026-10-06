@@ -1,5 +1,6 @@
 "use client";
 
+import { formatOverdue } from "@/lib/deal-alerts";
 import { useMemo, useState, type ComponentProps } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -231,7 +232,11 @@ export function DealWorkspace({
                     <div className="flex min-w-0 flex-1 flex-col gap-1">
                       <span className="text-sm font-medium text-foreground">{a.subject}</span>
                       <span className="flex flex-wrap items-center gap-1.5 text-caption text-muted-foreground">
-                        {overdue && <Badge variant="destructive">Vencida</Badge>}
+                        {overdue && (
+                          <Badge variant="destructive">
+                            Vencida {a.due_date ? formatOverdue(a.due_date)?.label : ""}
+                          </Badge>
+                        )}
                         <span>{ACTIVITY_TYPE_LABEL[a.type] ?? a.type}</span>
                         {a.due_date && (
                           <>

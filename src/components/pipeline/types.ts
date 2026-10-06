@@ -24,6 +24,9 @@ export interface PipelineDeal {
   next_activity_subject: string | null;
   next_activity_due: string | null;
   overdue_days: number | null;
+  /** "há 3 h" / "há 2 dias" — tempo de atraso da próxima atividade */
+  overdue_label: string | null;
+  overdue_short: string | null;
   no_upcoming_activity: boolean;
   is_stagnant: boolean;
 }

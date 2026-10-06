@@ -64,6 +64,9 @@ const ENTITY_LABEL: Record<string, string> = {
   automation_rules: "Automação",
   teams: "Equipe",
   profiles: "Usuário",
+  lead_sources: "Origem de lead",
+  segments: "Segmento",
+  digest_settings: "Resumo diário",
 };
 
 const FIELD_LABEL: Record<string, string> = {
@@ -92,7 +95,14 @@ const FIELD_LABEL: Record<string, string> = {
   cnpj: "CNPJ",
   legal_name: "Razão social",
   address: "Endereço",
-  sector: "Setor",
+  sector: "Setor (antigo)",
+  segment_id: "Segmento",
+  source_id: "Origem",
+  mobile: "Smartphone",
+  address_number: "Número",
+  address_complement: "Complemento",
+  neighborhood: "Bairro",
+  zip_code: "CEP",
   company_size: "Porte",
   nature: "Natureza",
   city: "Cidade",
@@ -157,7 +167,7 @@ const dateTimeFormat = new Intl.DateTimeFormat("pt-BR", {
   second: "2-digit",
 });
 
-function formatValue(field: string, value: unknown): string {
+export function formatValue(field: string, value: unknown): string {
   if (value === null || value === undefined || value === "") return "—";
   if (typeof value === "boolean") return value ? "Sim" : "Não";
   if (field === "value" && typeof value === "number") return formatCurrencyBRL(value);
@@ -172,7 +182,7 @@ function formatValue(field: string, value: unknown): string {
   return String(value);
 }
 
-function fieldLabel(field: string) {
+export function fieldLabel(field: string) {
   return FIELD_LABEL[field] ?? field.replace(/_/g, " ");
 }
 

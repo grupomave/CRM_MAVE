@@ -43,7 +43,10 @@ export async function buildExport(
         rows,
         columns: [
           { header: "Nome", value: (r: (typeof rows)[number]) => r.name, minWidth: 24 },
-          { header: "Contato", value: (r: (typeof rows)[number]) => r.contact_info },
+          { header: "Telefone", value: (r: (typeof rows)[number]) => r.phone },
+          { header: "Smartphone", value: (r: (typeof rows)[number]) => r.mobile },
+          { header: "E-mail", value: (r: (typeof rows)[number]) => r.email },
+          { header: "Contato (antigo)", value: (r: (typeof rows)[number]) => r.contact_info },
           { header: "Origem", value: (r: (typeof rows)[number]) => r.source },
           { header: "Status", value: (r: (typeof rows)[number]) => LEAD_STATUS_LABEL[r.status] },
           { header: "Responsável", value: (r: (typeof rows)[number]) => r.owner_name },
@@ -66,7 +69,7 @@ export async function buildExport(
         columns: [
           { header: "Nome fantasia", value: (r: Row) => r.name, minWidth: 24 },
           { header: "CNPJ", value: (r: Row) => r.cnpj, minWidth: 18 },
-          { header: "Setor", value: (r: Row) => r.sector },
+          { header: "Segmento", value: (r: Row) => r.segment },
           { header: "Cidade", value: (r: Row) => r.city },
           { header: "UF", value: (r: Row) => r.state, minWidth: 5 },
           { header: "Telefone", value: (r: Row) => r.phone, minWidth: 15 },

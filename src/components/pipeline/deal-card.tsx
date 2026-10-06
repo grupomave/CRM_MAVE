@@ -51,10 +51,12 @@ function alertBorder(deal: PipelineDeal) {
 function ActivityIndicator({ deal }: { deal: PipelineDeal }) {
   if (deal.overdue_days) {
     return (
-      <SimpleTooltip content={`Atividade atrasada há ${deal.overdue_days} ${deal.overdue_days === 1 ? "dia" : "dias"}`}>
+      <SimpleTooltip
+        content={`Atividade “${deal.next_activity_subject ?? "sem assunto"}” atrasada ${deal.overdue_label ?? ""}`.trim()}
+      >
         <span className="numeric inline-flex items-center gap-0.5 text-micro font-medium text-destructive">
           <CalendarX className="size-3.5" aria-hidden />
-          {deal.overdue_days}d
+          {deal.overdue_short}
           <span className="sr-only">de atraso</span>
         </span>
       </SimpleTooltip>
@@ -261,7 +263,9 @@ function DealCardBody({
 
       {!compact && (deal.overdue_days || deal.no_upcoming_activity || deal.is_stagnant) && (
         <div className="flex flex-wrap gap-1">
-          {deal.overdue_days && <Badge variant="destructive">Atrasado</Badge>}
+          {deal.overdue_days && (
+            <Badge variant="destructive">Atrasada {deal.overdue_label}</Badge>
+          )}
           {deal.no_upcoming_activity && <Badge variant="warning">Sem próxima atividade</Badge>}
           {deal.is_stagnant && <Badge variant="stagnant">Estagnado</Badge>}
         </div>

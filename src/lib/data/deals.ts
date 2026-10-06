@@ -122,6 +122,8 @@ export async function loadPipelineData(
       next_activity_subject: next?.subject ?? null,
       next_activity_due: next?.due_date ?? null,
       overdue_days: alerts.overdueDays,
+      overdue_label: alerts.overdueLabel,
+      overdue_short: alerts.overdueShort,
       no_upcoming_activity: alerts.noUpcomingActivity,
       is_stagnant: alerts.isStagnant,
     };

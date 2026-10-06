@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { loadCatalog, selectableItems } from "@/lib/data/catalogs";
 import { canReassignOwner, getCurrentUser, loadLeadRows, loadOwners } from "@/lib/data/lists";
 import { PageHeader } from "@/components/ui/page-header";
 import { ExportExcelButton } from "@/components/list/export-excel-button";
@@ -9,7 +10,11 @@ export const metadata = { title: "Leads" };
 
 export default async function LeadsPage() {
   const supabase = await createClient();
-  const [owners, me] = await Promise.all([loadOwners(supabase), getCurrentUser()]);
+  const [owners, me, sourceCatalog] = await Promise.all([
+    loadOwners(supabase),
+    getCurrentUser(),
+    loadCatalog(supabase, "lead_sources"),
+  ]);
   const leads = await loadLeadRows(supabase, owners);
 
   return (
@@ -20,7 +25,12 @@ export default async function LeadsPage() {
         actions={
           <>
             <ExportExcelButton entity="leads" />
-            <LeadsToolbar />
+            <LeadsToolbar
+              sources={selectableItems(sourceCatalog)}
+              owners={owners.filter((o) => o.is_active)}
+              currentUserId={me?.id ?? ""}
+              canReassign={canReassignOwner(me?.role)}
+            />
           </>
         }
       />

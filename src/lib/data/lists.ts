@@ -69,14 +69,21 @@ function ownerNames(owners: OwnerOption[]) {
 
 export async function loadLeadRows(supabase: Supabase, owners: OwnerOption[]): Promise<LeadRow[]> {
   const names = ownerNames(owners);
-  const rows = await fetchAllRows<Omit<LeadRow, "owner_name">>((from, to) =>
+  type RawLead = Omit<LeadRow, "owner_name"> & { lead_sources: { name: string } | null };
+  const rows = await fetchAllRows<RawLead>((from, to) =>
     supabase
       .from("leads")
-      .select("id, name, contact_info, source, status, created_at, owner_id")
+      .select(
+        "id, name, contact_info, source, source_id, phone, mobile, email, status, created_at, owner_id, lead_sources ( name )",
+      )
       .order("created_at", { ascending: false })
-      .range(from, to),
+      .range(from, to) as unknown as PromiseLike<{ data: RawLead[] | null; error: unknown }>,
   );
-  return rows.map((l) => ({ ...l, owner_name: names.get(l.owner_id) ?? null }));
+  return rows.map(({ lead_sources, ...l }) => ({
+    ...l,
+    source: lead_sources?.name ?? l.source,
+    owner_name: names.get(l.owner_id) ?? null,
+  }));
 }
 
 interface RawPerson {
@@ -118,6 +125,8 @@ interface RawOrganization {
   name: string;
   cnpj: string | null;
   sector: string | null;
+  segment_id: string | null;
+  segments: { name: string } | null;
   city: string | null;
   state: string | null;
   phone: string | null;
@@ -134,9 +143,9 @@ export async function loadOrganizationRows(
     fetchAllRows<RawOrganization>((from, to) =>
       supabase
         .from("organizations")
-        .select("id, name, cnpj, sector, city, state, phone, created_at, owner_id")
+        .select("id, name, cnpj, sector, segment_id, city, state, phone, created_at, owner_id, segments ( name )")
         .order("created_at", { ascending: false })
-        .range(from, to),
+        .range(from, to) as unknown as PromiseLike<{ data: RawOrganization[] | null; error: unknown }>,
     ),
     fetchAllRows<{ organization_id: string | null }>((from, to) =>
       supabase.from("contacts").select("organization_id").range(from, to),
@@ -165,8 +174,10 @@ export async function loadOrganizationRows(
     statsByOrg.set(d.organization_id, stats);
   }
 
-  return organizations.map((o) => ({
+  return organizations.map(({ segments, sector, ...o }) => ({
     ...o,
+    // Segmento cadastrado; o texto livre antigo (Setor) só aparece se ainda não foi migrado
+    segment: segments?.name ?? sector,
     owner_name: names.get(o.owner_id) ?? null,
     contacts_count: contactsByOrg.get(o.id) ?? 0,
     open_deals_count: statsByOrg.get(o.id)?.openCount ?? 0,

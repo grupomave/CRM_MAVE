@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { KeyRound, MoreHorizontal, Pencil, Plus, Power, Trash2, Users as UsersIcon } from "lucide-react";
+import { Inbox, KeyRound, MoreHorizontal, Pencil, Plus, Power, Tags, Trash2, Users as UsersIcon } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -55,6 +55,8 @@ import {
 import { maskPhoneBR } from "@/lib/masks";
 import { PipelinesSettings, type StageStats } from "./pipelines-settings";
 import { AuditLogSettings } from "./audit-log-settings";
+import { CatalogSettings, type CatalogRow } from "./catalog-settings";
+import { DigestSettings, type DigestSettingsRow } from "./digest-settings";
 import { LostReasonsSettings, type LostReasonUsage, type SettingsLostReason } from "./lost-reasons-settings";
 import { friendlyError, toast } from "@/lib/toast";
 import type { UserRole, CustomFieldType, EntityType } from "@/lib/supabase/types";
@@ -107,6 +109,12 @@ export function SettingsTabs({
   teams,
   lostReasons,
   lostReasonUsage,
+  canManageCatalogs,
+  leadSources,
+  leadSourceUsage,
+  segments,
+  segmentUsage,
+  digest,
 }: {
   isAdmin: boolean;
   stageStats: StageStats;
@@ -117,6 +125,12 @@ export function SettingsTabs({
   teams: Team[];
   lostReasons: SettingsLostReason[];
   lostReasonUsage: LostReasonUsage;
+  canManageCatalogs: boolean;
+  leadSources: CatalogRow[];
+  leadSourceUsage: Record<string, number>;
+  segments: CatalogRow[];
+  segmentUsage: Record<string, number>;
+  digest: DigestSettingsRow;
 }) {
   return (
     <Tabs defaultValue="users">
@@ -124,6 +138,9 @@ export function SettingsTabs({
         <TabsTrigger value="users">Usuários e permissões</TabsTrigger>
         <TabsTrigger value="pipelines">Pipelines e estágios</TabsTrigger>
         <TabsTrigger value="lost-reasons">Motivos da perda</TabsTrigger>
+        <TabsTrigger value="sources">Origens de lead</TabsTrigger>
+        <TabsTrigger value="segments">Segmentos</TabsTrigger>
+        <TabsTrigger value="digest">Resumo diário</TabsTrigger>
         <TabsTrigger value="fields">Campos customizados</TabsTrigger>
         {isAdmin && <TabsTrigger value="audit">Logs de auditoria</TabsTrigger>}
       </TabsList>
@@ -136,6 +153,45 @@ export function SettingsTabs({
       </TabsContent>
       <TabsContent value="lost-reasons">
         <LostReasonsSettings reasons={lostReasons} usage={lostReasonUsage} isAdmin={isAdmin} />
+      </TabsContent>
+      <TabsContent value="sources">
+        <CatalogSettings
+          table="lead_sources"
+          rows={leadSources}
+          usage={leadSourceUsage}
+          canEdit={canManageCatalogs}
+          icon={Inbox}
+          labels={{
+            singular: "Origem",
+            plural: "origens",
+            article: "a",
+            description: "Opções do campo Origem em Leads. Desative uma origem para tirá-la das listas sem perder o histórico.",
+            usageHeader: "Leads",
+            usageNoun: { one: "lead", other: "leads" },
+            emptyTitle: "Nenhuma origem cadastrada",
+          }}
+        />
+      </TabsContent>
+      <TabsContent value="segments">
+        <CatalogSettings
+          table="segments"
+          rows={segments}
+          usage={segmentUsage}
+          canEdit={canManageCatalogs}
+          icon={Tags}
+          labels={{
+            singular: "Segmento",
+            plural: "segmentos",
+            article: "o",
+            description: "Segmentos de atuação das organizações (antigo campo Setor). Usados nos filtros e relatórios.",
+            usageHeader: "Organizações",
+            usageNoun: { one: "organização", other: "organizações" },
+            emptyTitle: "Nenhum segmento cadastrado",
+          }}
+        />
+      </TabsContent>
+      <TabsContent value="digest">
+        <DigestSettings settings={digest} canEdit={canManageCatalogs} />
       </TabsContent>
       <TabsContent value="fields">
         <CustomFieldsTab customFields={customFields} />

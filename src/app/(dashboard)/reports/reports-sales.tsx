@@ -91,3 +91,48 @@ export function RegionSalesChart({
     </Card>
   );
 }
+
+export function SegmentSalesTable({
+  rows,
+}: {
+  rows: { segment: string; won: number; wonValue: number; openCount: number; openValue: number }[];
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Negócios por segmento da organização</CardTitle>
+      </CardHeader>
+      <CardContent className="overflow-x-auto p-0">
+        <Table containerClassName="rounded-none border-0 shadow-none">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Segmento</TableHead>
+              <TableHead align="right">Ganhos</TableHead>
+              <TableHead align="right">Valor ganho</TableHead>
+              <TableHead align="right">Em aberto</TableHead>
+              <TableHead align="right">Valor em aberto</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((r) => (
+              <TableRow key={r.segment}>
+                <TableCell className="font-medium">{r.segment}</TableCell>
+                <TableCell numeric>{r.won}</TableCell>
+                <TableCell numeric>{formatCurrencyBRL(r.wonValue)}</TableCell>
+                <TableCell numeric>{r.openCount}</TableCell>
+                <TableCell numeric>{formatCurrencyBRL(r.openValue)}</TableCell>
+              </TableRow>
+            ))}
+            {rows.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                  Nenhum negócio no período.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}

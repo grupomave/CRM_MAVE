@@ -18,15 +18,19 @@ interface Option {
 export function ReportsFilters({
   pipelines,
   owners,
+  segments,
   pipelineId,
   ownerId,
+  segmentId,
   from,
   to,
 }: {
   pipelines: Option[];
   owners: Option[];
+  segments: Option[];
   pipelineId: string;
   ownerId: string;
+  segmentId: string;
   from: string;
   to: string;
 }) {
@@ -72,6 +76,23 @@ export function ReportsFilters({
             {owners.map((o) => (
               <SelectItem key={o.id} value={o.id}>
                 {o.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label className="text-caption font-medium text-muted-foreground">Por segmento</label>
+        <Select value={segmentId} onValueChange={(v) => update({ segment: v === "all" ? "" : v })}>
+          <SelectTrigger className="w-48" aria-label="Filtrar por segmento">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os segmentos</SelectItem>
+            {segments.map((s) => (
+              <SelectItem key={s.id} value={s.id}>
+                {s.name}
               </SelectItem>
             ))}
           </SelectContent>

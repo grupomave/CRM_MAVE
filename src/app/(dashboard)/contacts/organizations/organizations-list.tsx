@@ -44,7 +44,7 @@ import { getPagination, paginate } from "@/lib/filters/params";
 import { formatCurrencyBRL } from "@/lib/utils";
 import type { OwnerOption } from "@/lib/data/lists";
 
-const FILTER_KEYS = ["q", "owner", "uf", "sector", "open"];
+const FILTER_KEYS = ["q", "owner", "uf", "segment", "open"];
 
 function uniqueSorted(values: (string | null)[]) {
   return Array.from(new Set(values.filter(Boolean) as string[])).sort((a, b) =>
@@ -75,7 +75,7 @@ export function OrganizationsList({
   const pageIds = current.rows.map((o) => o.id);
 
   const states = useMemo(() => uniqueSorted(organizations.map((o) => o.state)), [organizations]);
-  const sectors = useMemo(() => uniqueSorted(organizations.map((o) => o.sector)), [organizations]);
+  const segments = useMemo(() => uniqueSorted(organizations.map((o) => o.segment)), [organizations]);
   const ownerName = (id: string) => owners.find((o) => o.id === id)?.full_name ?? "—";
   const onSort = (s: { key: string; dir: string }) => update({ sort: s.key, dir: s.dir });
 
@@ -84,8 +84,8 @@ export function OrganizationsList({
   if (filters.owner)
     chips.push({ key: "owner", label: `Responsável: ${ownerName(filters.owner)}`, onRemove: () => update({ owner: null }) });
   if (filters.state) chips.push({ key: "uf", label: `UF: ${filters.state}`, onRemove: () => update({ uf: null }) });
-  if (filters.sector)
-    chips.push({ key: "sector", label: `Setor: ${filters.sector}`, onRemove: () => update({ sector: null }) });
+  if (filters.segment)
+    chips.push({ key: "segment", label: `Segmento: ${filters.segment}`, onRemove: () => update({ segment: null }) });
   if (filters.withOpenDeals)
     chips.push({ key: "open", label: "Com negócios abertos", onRemove: () => update({ open: null }) });
 
@@ -110,13 +110,13 @@ export function OrganizationsList({
                 options={owners.map((o) => ({ value: o.id, label: o.full_name }))}
               />
             )}
-            {sectors.length > 0 && (
+            {segments.length > 0 && (
               <FilterSelect
-                label="Setor"
-                value={filters.sector}
-                onChange={(sector) => update({ sector })}
-                allLabel="Todos os setores"
-                options={sectors.map((s) => ({ value: s, label: s }))}
+                label="Segmento"
+                value={filters.segment}
+                onChange={(segment) => update({ segment })}
+                allLabel="Todos os segmentos"
+                options={segments.map((s) => ({ value: s, label: s }))}
               />
             )}
             {states.length > 0 && (
@@ -157,8 +157,8 @@ export function OrganizationsList({
             <SortableHead sortKey="name" sort={filters.sort} onSort={onSort}>
               Organização
             </SortableHead>
-            <SortableHead sortKey="sector" sort={filters.sort} onSort={onSort}>
-              Setor
+            <SortableHead sortKey="segment" sort={filters.sort} onSort={onSort}>
+              Segmento
             </SortableHead>
             <SortableHead sortKey="city" sort={filters.sort} onSort={onSort}>
               Cidade/UF
@@ -211,7 +211,7 @@ export function OrganizationsList({
                     </span>
                   </Link>
                 </TableCell>
-                <TableCell className="text-muted-foreground">{o.sector ?? "—"}</TableCell>
+                <TableCell className="text-muted-foreground">{o.segment ?? "—"}</TableCell>
                 <TableCell className="whitespace-nowrap text-muted-foreground">
                   {o.city ? `${o.city}${o.state ? `/${o.state}` : ""}` : (o.state ?? "—")}
                 </TableCell>

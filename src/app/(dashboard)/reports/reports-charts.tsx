@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import {
   BarChart,
   Bar,
@@ -62,9 +63,13 @@ export function StatTile({
 
 export function StageFunnelChart({
   data,
+  hrefForStage,
 }: {
-  data: { stage: string; total: number }[];
+  data: { stage: string; total: number; id?: string }[];
+  /** Quando informado, clicar numa barra abre a lista dos negócios da etapa */
+  hrefForStage?: (stageId: string) => string;
 }) {
+  const router = useRouter();
   const height = Math.max(288, data.length * 36);
   return (
     <Card>
@@ -78,7 +83,16 @@ export function StageFunnelChart({
             <XAxis {...AXIS_PROPS} type="number" tickFormatter={(v) => formatCurrencyBRL(v)} />
             <YAxis {...AXIS_PROPS} type="category" dataKey="stage" width={120} />
             <Tooltip cursor={CURSOR} content={<ChartTooltip valueFormatter={formatCurrencyBRL} />} />
-            <Bar dataKey="total" fill={PRIMARY} radius={[0, 4, 4, 0]} />
+            <Bar
+              dataKey="total"
+              fill={PRIMARY}
+              radius={[0, 4, 4, 0]}
+              cursor={hrefForStage ? "pointer" : undefined}
+              onClick={(entry) => {
+                const id = (entry as unknown as { payload?: { id?: string } }).payload?.id;
+                if (hrefForStage && id) router.push(hrefForStage(id));
+              }}
+            />
           </BarChart>
         </ResponsiveContainer>
       </CardContent>
@@ -88,9 +102,13 @@ export function StageFunnelChart({
 
 export function MonthlyTrendChart({
   data,
+  hrefForMonth,
 }: {
-  data: { month: string; criados: number; ganhos: number; perdidos: number }[];
+  data: { month: string; criados: number; ganhos: number; perdidos: number; key?: string }[];
+  /** Quando informado, clicar num mês abre os negócios criados, ganhos e perdidos nele */
+  hrefForMonth?: (monthKey: string) => string;
 }) {
+  const router = useRouter();
   return (
     <Card>
       <CardHeader>
@@ -98,7 +116,15 @@ export function MonthlyTrendChart({
       </CardHeader>
       <CardContent className="h-72">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data}>
+          <LineChart
+            data={data}
+            style={hrefForMonth ? { cursor: "pointer" } : undefined}
+            onClick={(state) => {
+              const idx = Number((state as { activeTooltipIndex?: number | string } | undefined)?.activeTooltipIndex);
+              const key = Number.isFinite(idx) ? data[idx]?.key : undefined;
+              if (hrefForMonth && key) router.push(hrefForMonth(key));
+            }}
+          >
             <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" vertical={false} />
             <XAxis {...AXIS_PROPS} dataKey="month" />
             <YAxis {...AXIS_PROPS} allowDecimals={false} />

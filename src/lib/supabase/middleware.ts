@@ -6,6 +6,8 @@ const PUBLIC_PATHS = [
   "/auth/callback",
   "/change-password",
   "/forgot-password",
+  // Rotas de cron se autenticam sozinhas com CRON_SECRET (Authorization: Bearer)
+  "/api/cron",
 ];
 
 // Evita reconsultar `profiles.must_change_password` a cada navegação: o

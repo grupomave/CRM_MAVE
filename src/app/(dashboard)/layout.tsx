@@ -30,7 +30,7 @@ export default async function DashboardLayout({
   const [{ data: profile }, cookieStore] = await Promise.all([
     supabase
       .from("profiles")
-      .select("full_name, avatar_url")
+      .select("full_name, avatar_url, role")
       .eq("id", user.id)
       .single(),
     cookies(),
@@ -51,10 +51,11 @@ export default async function DashboardLayout({
         Pular para o conteúdo
       </a>
       <div className="flex min-h-dvh">
-        <Sidebar initialCollapsed={sidebarCollapsed} initialWidth={sidebarWidth} />
+        <Sidebar initialCollapsed={sidebarCollapsed} initialWidth={sidebarWidth} role={profile?.role} />
         <div className="flex min-w-0 flex-1 flex-col">
           <Header
             userId={user.id}
+            role={profile?.role}
             fullName={profile?.full_name ?? user.email ?? "Usuário"}
             email={user.email ?? ""}
             avatarUrl={profile?.avatar_url ?? null}

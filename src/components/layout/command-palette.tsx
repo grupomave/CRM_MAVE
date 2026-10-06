@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Command } from "cmdk";
 import { Building2, Inbox, KanbanSquare, Loader2, Search, Users, type LucideIcon } from "lucide-react";
-import { NAV_ITEMS } from "@/lib/nav";
+import { NAV_ITEMS, navItemVisible } from "@/lib/nav";
+import type { UserRole } from "@/lib/supabase/types";
 import { createClient } from "@/lib/supabase/client";
 
 interface SearchResult {
@@ -30,7 +31,7 @@ function likePattern(term: string) {
   return `%${term.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
 }
 
-export function CommandPalette() {
+export function CommandPalette({ role }: { role?: UserRole | null }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -217,7 +218,8 @@ export function CommandPalette() {
                 <Command.Group heading="Ir para" className={groupClasses}>
                   {NAV_ITEMS.filter(
                     (item) =>
-                      !searching || item.label.toLowerCase().includes(query.trim().toLowerCase()),
+                      navItemVisible(item, role) &&
+                      (!searching || item.label.toLowerCase().includes(query.trim().toLowerCase())),
                   ).map((item) => (
                     <Command.Item
                       key={item.href}

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { formatOverdue } from "@/lib/deal-alerts";
 import { ActivitiesToolbar } from "./activities-toolbar";
 import { ActivityDoneToggle } from "./activity-done-toggle";
 import { ActivitiesCalendar } from "./activities-calendar";
@@ -154,6 +155,11 @@ export default async function ActivitiesPage() {
                               timeStyle: "short",
                             })
                           : "—"}
+                        {overdue && a.due_date && (
+                          <span className="block text-caption font-medium">
+                            Atrasada {formatOverdue(a.due_date, now)?.label}
+                          </span>
+                        )}
                       </TableCell>
                     </TableRow>
                   );

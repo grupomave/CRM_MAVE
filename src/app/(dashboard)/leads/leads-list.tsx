@@ -122,7 +122,7 @@ export function LeadsList({
           <SearchInput
             value={filters.q}
             onChange={(q) => update({ q })}
-            placeholder="Buscar por nome, contato ou origem"
+            placeholder="Buscar por nome, telefone, e-mail ou origem"
           />
         }
         filters={
@@ -212,7 +212,18 @@ export function LeadsList({
                     {lead.name}
                   </Link>
                 </TableCell>
-                <TableCell className="text-muted-foreground">{lead.contact_info ?? "—"}</TableCell>
+                <TableCell className="text-muted-foreground">
+                  {lead.mobile || lead.phone || lead.email || lead.contact_info ? (
+                    <span className="flex flex-col text-caption">
+                      {lead.mobile && <span className="numeric">{lead.mobile} <span className="text-micro">(cel./WhatsApp)</span></span>}
+                      {lead.phone && <span className="numeric">{lead.phone}</span>}
+                      {lead.email && <span className="truncate">{lead.email}</span>}
+                      {!lead.mobile && !lead.phone && !lead.email && <span>{lead.contact_info}</span>}
+                    </span>
+                  ) : (
+                    "—"
+                  )}
+                </TableCell>
                 <TableCell className="text-muted-foreground">{lead.source ?? "—"}</TableCell>
                 <TableCell>
                   <Badge variant={LEAD_STATUS_BADGE[lead.status]}>{LEAD_STATUS_LABEL[lead.status]}</Badge>

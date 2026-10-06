@@ -1,5 +1,6 @@
 "use client";
 
+import type { UserRole } from "@/lib/supabase/types";
 import { useRef, useState } from "react";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Logo } from "@/components/layout/logo";
@@ -22,9 +23,11 @@ const clampWidth = (w: number) => Math.min(SIDEBAR_WIDTH_MAX, Math.max(SIDEBAR_W
 export function Sidebar({
   initialCollapsed = false,
   initialWidth = SIDEBAR_WIDTH_DEFAULT,
+  role,
 }: {
   initialCollapsed?: boolean;
   initialWidth?: number;
+  role?: UserRole | null;
 }) {
   const [collapsed, setCollapsed] = useState(initialCollapsed);
   const [width, setWidth] = useState(initialWidth);
@@ -92,7 +95,7 @@ export function Sidebar({
         <Logo collapsed={collapsed} />
       </div>
       <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto">
-        <SidebarNav collapsed={collapsed} />
+        <SidebarNav collapsed={collapsed} role={role} />
       </div>
       <div className={cn("border-t border-border p-2", collapsed && "flex justify-center")}>
         <SimpleTooltip content={collapsed ? toggleLabel : null} side="right">

@@ -20,7 +20,7 @@ import {
   ActivityByOwnerTable,
 } from "./reports-charts";
 import { OwnerPipelineTable, SourcePipelineChart, StagnantDealsTable } from "./reports-pipeline";
-import { CustomerSalesTable, RegionSalesChart } from "./reports-sales";
+import { CustomerSalesTable, RegionSalesChart, SegmentSalesTable } from "./reports-sales";
 import { LeadsStatusChart, LeadsSourceTable } from "./reports-leads";
 import { OverdueActivitiesTable, ExpiringDealsTable } from "./reports-alerts";
 import { PageHeader } from "@/components/ui/page-header";
@@ -42,13 +42,13 @@ interface DealRow {
   closed_at: string | null;
   last_activity_at: string | null;
   profiles: { full_name: string } | null;
-  organizations: { name: string; state: string | null } | null;
+  organizations: { name: string; state: string | null; segment_id: string | null; segments: { name: string } | null } | null;
 }
 
 export default async function ReportsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ pipeline?: string; owner?: string; from?: string; to?: string }>;
+  searchParams: Promise<{ pipeline?: string; owner?: string; segment?: string; from?: string; to?: string }>;
 }) {
   const supabase = await createClient();
   const params = await searchParams;
@@ -59,8 +59,9 @@ export default async function ReportsPage({
   const from = params.from || defaultRange.from;
   const to = params.to || defaultRange.to;
 
-  const [{ data: pipelines }, owners] = await Promise.all([
+  const [{ data: pipelines }, { data: segmentRows }, owners] = await Promise.all([
     supabase.from("pipelines").select("id, name, is_default").order("name"),
+    supabase.from("segments").select("id, name, is_active").order("order_index").order("name"),
     fetchAllRows((f, t) =>
       supabase.from("profiles").select("id, full_name").order("full_name").range(f, t),
     ),
@@ -72,6 +73,9 @@ export default async function ReportsPage({
     pipelines?.[0];
   const pipelineId = selectedPipeline?.id;
   const ownerId = params.owner && params.owner !== "all" ? params.owner : "all";
+  // Filtro "Por segmento": só negócios cujas organizações são do segmento escolhido
+  const segmentId =
+    params.segment && segmentRows?.some((s) => s.id === params.segment) ? params.segment : "all";
 
   const { data: stages } = pipelineId
     ? await supabase
@@ -84,8 +88,9 @@ export default async function ReportsPage({
   let dealsQuery = supabase
     .from("deals")
     .select(
-      "id, title, value, status, lost_reasons ( name ), stage_id, owner_id, source, expected_close_date, created_at, updated_at, closed_at, last_activity_at, profiles!deals_owner_id_fkey ( full_name ), organizations ( name, state )",
+      `id, title, value, status, lost_reasons ( name ), stage_id, owner_id, source, expected_close_date, created_at, updated_at, closed_at, last_activity_at, profiles!deals_owner_id_fkey ( full_name ), organizations${segmentId !== "all" ? "!inner" : ""} ( name, state, segment_id, segments ( name ) )`,
     );
+  if (segmentId !== "all") dealsQuery = dealsQuery.eq("organizations.segment_id", segmentId);
   if (pipelineId) dealsQuery = dealsQuery.eq("pipeline_id", pipelineId);
   if (ownerId !== "all") dealsQuery = dealsQuery.eq("owner_id", ownerId);
 
@@ -116,9 +121,17 @@ export default async function ReportsPage({
   // --- Leads no período — tabela própria, sem relação com pipeline ---
   let leadsQuery = supabase
     .from("leads")
-    .select("id, source, status, created_at, converted_deal_id, owner_id");
+    .select("id, source, status, created_at, converted_deal_id, owner_id, lead_sources ( name )");
   if (ownerId !== "all") leadsQuery = leadsQuery.eq("owner_id", ownerId);
-  const allLeads = await fetchAllRows((f, t) => leadsQuery.range(f, t));
+  const allLeads = (await fetchAllRows((f, t) => leadsQuery.range(f, t))) as unknown as {
+    id: string;
+    source: string | null;
+    status: string;
+    created_at: string;
+    converted_deal_id: string | null;
+    owner_id: string;
+    lead_sources: { name: string } | null;
+  }[];
 
   // --- Temperatura da carteira (docx seção 3.8-A) — só negócios abertos,
   // sem o filtro de período, já que é uma leitura do "agora".
@@ -319,6 +332,27 @@ export default async function ReportsPage({
     .map(([region, value]) => ({ region, value }))
     .sort((a, b) => b.value - a.value);
 
+  // --- Negócios por segmento da organização (ganhos no período + abertos agora) ---
+  const segmentMap = new Map<string, { won: number; wonValue: number; openCount: number; openValue: number }>();
+  const segmentOf = (d: DealRow) => d.organizations?.segments?.name ?? "Sem segmento";
+  const bumpSegment = (d: DealRow, kind: "won" | "open") => {
+    const key = segmentOf(d);
+    const cur = segmentMap.get(key) ?? { won: 0, wonValue: 0, openCount: 0, openValue: 0 };
+    if (kind === "won") {
+      cur.won += 1;
+      cur.wonValue += d.value;
+    } else {
+      cur.openCount += 1;
+      cur.openValue += d.value;
+    }
+    segmentMap.set(key, cur);
+  };
+  for (const d of wonInRange) bumpSegment(d, "won");
+  for (const d of openDeals) bumpSegment(d, "open");
+  const salesBySegmentData = Array.from(segmentMap.entries())
+    .map(([segment, v]) => ({ segment, ...v }))
+    .sort((a, b) => b.wonValue - a.wonValue || b.openValue - a.openValue);
+
   // --- Atividades por vendedor no período ---
   const ACTIVITY_TYPES = ["task", "call", "meeting", "email", "whatsapp"] as const;
   const activityByOwnerMap = new Map<
@@ -366,7 +400,7 @@ export default async function ReportsPage({
   for (const l of leadsInRange) {
     const statusLabel = LEAD_STATUS_LABEL[l.status] ?? l.status;
     leadsByStatusMap.set(statusLabel, (leadsByStatusMap.get(statusLabel) ?? 0) + 1);
-    const sourceLabel = l.source?.trim() || "Não informado";
+    const sourceLabel = l.lead_sources?.name || l.source?.trim() || "Não informado";
     leadsBySourceMap.set(sourceLabel, (leadsBySourceMap.get(sourceLabel) ?? 0) + 1);
     if (l.status === "converted") leadsConverted++;
   }
@@ -384,7 +418,9 @@ export default async function ReportsPage({
   const pipelineLabel = selectedPipeline?.name ?? "Todos os funis";
   const ownerLabel =
     ownerId === "all" ? "Todos" : owners.find((o) => o.id === ownerId)?.full_name ?? "—";
-  const exportSubtitle = `Funil: ${pipelineLabel} · Vendedor: ${ownerLabel} · Período: ${from} a ${to}`;
+  const segmentLabel =
+    segmentId === "all" ? "Todos" : (segmentRows?.find((s) => s.id === segmentId)?.name ?? "—");
+  const exportSubtitle = `Funil: ${pipelineLabel} · Vendedor: ${ownerLabel} · Segmento: ${segmentLabel} · Período: ${from} a ${to}`;
   const fileSlug = (suffix: string) =>
     `relatorio-${suffix}-${pipelineLabel}-${from}_a_${to}`
       .toLowerCase()
@@ -542,6 +578,17 @@ export default async function ReportsPage({
       ],
       rows: salesByRegionData,
     },
+    {
+      name: "Negócios por segmento",
+      columns: [
+        { header: "Segmento", key: "segment", width: 28 },
+        { header: "Ganhos", key: "won", width: 12 },
+        { header: "Valor ganho", key: "wonValue", width: 18 },
+        { header: "Em aberto", key: "openCount", width: 12 },
+        { header: "Valor em aberto", key: "openValue", width: 18 },
+      ],
+      rows: salesBySegmentData,
+    },
   ];
   const salesPdfSections: PdfSection[] = [
     {
@@ -554,6 +601,17 @@ export default async function ReportsPage({
       columns: ["Região", "Valor ganho"],
       rows: salesByRegionData.map((r) => [r.region, formatCurrencyBRL(r.value)]),
       chartImageId: CHART_IDS.regionSales,
+    },
+    {
+      title: "Negócios por segmento",
+      columns: ["Segmento", "Ganhos", "Valor ganho", "Em aberto", "Valor em aberto"],
+      rows: salesBySegmentData.map((r) => [
+        r.segment,
+        r.won,
+        formatCurrencyBRL(r.wonValue),
+        r.openCount,
+        formatCurrencyBRL(r.openValue),
+      ]),
     },
   ];
   const salesChartSheets: ExcelChartSheetSpec[] = [
@@ -802,14 +860,16 @@ export default async function ReportsPage({
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Relatórios"
-        description="Funil, evolução, perdas e desempenho por vendedor"
+        description="Funil, evolução, perdas, segmentos e desempenho por vendedor. Exporte em Excel, PDF ou HTML interativo."
         actions={
           <>
           <ReportsFilters
             pipelines={pipelines ?? []}
             owners={owners.map((o) => ({ id: o.id, name: o.full_name }))}
+            segments={(segmentRows ?? []).filter((s) => s.is_active || s.id === segmentId).map((s) => ({ id: s.id, name: s.name }))}
             pipelineId={pipelineId ?? ""}
             ownerId={ownerId}
+            segmentId={segmentId}
             from={from}
             to={to}
           />
@@ -923,6 +983,7 @@ export default async function ReportsPage({
               <CustomerSalesTable rows={salesByCustomerData} />
               <RegionSalesChart data={salesByRegionData} />
             </div>
+            <SegmentSalesTable rows={salesBySegmentData} />
           </div>
         </TabsContent>
 

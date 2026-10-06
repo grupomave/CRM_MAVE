@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrencyBRL } from "@/lib/utils";
 import { OrganizationDetailForm } from "./organization-detail-form";
+import { loadCatalog, selectableItems } from "@/lib/data/catalogs";
 import { EntityFilesTab } from "@/components/entity-files-tab";
 import { PageHeader } from "@/components/ui/page-header";
 
@@ -33,6 +34,9 @@ export default async function OrganizationDetailPage({
     .single();
 
   if (!organization) notFound();
+
+  const segmentCatalog = await loadCatalog(supabase, "segments");
+  const segmentName = segmentCatalog.find((s) => s.id === organization.segment_id)?.name ?? organization.sector;
 
   const {
     data: { user },
@@ -70,7 +74,7 @@ export default async function OrganizationDetailPage({
     <div className="mx-auto flex w-full max-w-detail flex-col gap-5">
       <PageHeader
         title={organization.name}
-        description={[organization.sector, organization.city && `${organization.city}${organization.state ? `/${organization.state}` : ""}`]
+        description={[segmentName, organization.city && `${organization.city}${organization.state ? `/${organization.state}` : ""}`]
           .filter(Boolean)
           .join(" · ") || undefined}
         breadcrumbs={[
@@ -80,7 +84,11 @@ export default async function OrganizationDetailPage({
       />
 
       <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)]">
-        <OrganizationDetailForm organization={organization as never} canDelete={canDelete} />
+        <OrganizationDetailForm
+          organization={organization as never}
+          canDelete={canDelete}
+          segments={selectableItems(segmentCatalog, organization.segment_id)}
+        />
 
         <div className="flex flex-col gap-5">
           <RelatedList
