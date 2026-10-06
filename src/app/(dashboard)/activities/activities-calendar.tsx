@@ -18,6 +18,7 @@ import { ptBR } from "date-fns/locale";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { ActivityEditButton } from "./activity-edit-button";
 
 export interface CalendarActivity {
   id: string;
@@ -109,7 +110,7 @@ export function ActivitiesCalendar({ activities }: { activities: CalendarActivit
                   const content = (
                     <span
                       className={cn(
-                        "block truncate rounded px-1 py-0.5 text-micro",
+                        "block truncate rounded py-0.5 pl-1 pr-5 text-micro",
                         a.done
                           ? "bg-muted text-muted-foreground line-through"
                           : overdue
@@ -126,12 +127,16 @@ export function ActivitiesCalendar({ activities }: { activities: CalendarActivit
                     : a.contact_id
                       ? `/contacts/people/${a.contact_id}`
                       : null;
-                  return href ? (
-                    <Link key={a.id} href={href}>
-                      {content}
-                    </Link>
-                  ) : (
-                    <div key={a.id}>{content}</div>
+                  return (
+                    <div key={a.id} className="group relative">
+                      {href ? <Link href={href}>{content}</Link> : content}
+                      <ActivityEditButton
+                        activity={a}
+                        compact
+                        // aparece ao passar o mouse/focar; sempre visível em telas de toque
+                        className="absolute right-0.5 top-1/2 -translate-y-1/2 opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100"
+                      />
+                    </div>
                   );
                 })}
                 {dayActivities.length > 3 && (

@@ -13,6 +13,7 @@ import {
   MessageCircle,
   MessageSquareText,
   Paperclip,
+  Pencil,
   Phone,
   StickyNote,
   Users,
@@ -28,6 +29,7 @@ import { FilterToggle } from "@/components/list/list-toolbar";
 import { NewActivityDialog } from "@/components/forms/new-activity-dialog";
 import { EntityFilesTab, type EntityAttachment } from "@/components/entity-files-tab";
 import { ActivityDoneToggle } from "@/app/(dashboard)/activities/activity-done-toggle";
+import { ActivityEditButton } from "@/app/(dashboard)/activities/activity-edit-button";
 import { createClient } from "@/lib/supabase/client";
 import { friendlyError, toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
@@ -69,6 +71,86 @@ function formatDue(iso: string) {
   return dateTime.format(new Date(iso));
 }
 
+function NoteTimelineBody({
+  noteId,
+  content,
+  onSaved,
+  editing,
+  onClose,
+}: {
+  noteId: string;
+  content: string;
+  onSaved: () => void;
+  editing: boolean;
+  onClose: () => void;
+}) {
+  const [value, setValue] = useState(content);
+  const [saving, setSaving] = useState(false);
+  const changed = value.trim() !== content.trim() && value.trim().length > 0;
+
+  if (!editing) {
+    return <p className="mt-1 whitespace-pre-wrap break-words text-sm text-foreground/90">{content}</p>;
+  }
+
+  async function save() {
+    if (!changed || saving) return;
+    setSaving(true);
+    const supabase = createClient();
+    // select() devolve as linhas afetadas: o RLS bloqueia sem erro (0 linhas)
+    const { data, error } = await supabase
+      .from("notes")
+      .update({ content: value.trim() })
+      .eq("id", noteId)
+      .select("id");
+    setSaving(false);
+    if (error) {
+      toast.error("Não foi possível salvar a anotação", { description: friendlyError(error) });
+      return;
+    }
+    if (!data?.length) {
+      toast.error("Você não tem permissão para editar esta anotação");
+      return;
+    }
+    toast.success("Anotação atualizada");
+    onClose();
+    onSaved();
+  }
+
+  return (
+    <div className="mt-2 flex flex-col gap-2">
+      <Textarea
+        aria-label="Editar anotação"
+        autoFocus
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) save();
+          if (e.key === "Escape") {
+            setValue(content);
+            onClose();
+          }
+        }}
+        className="min-h-24"
+      />
+      <div className="flex items-center justify-end gap-2">
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => {
+            setValue(content);
+            onClose();
+          }}
+        >
+          Descartar
+        </Button>
+        <Button size="sm" onClick={save} loading={saving} disabled={!changed}>
+          Salvar
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function DealWorkspace({
   dealId,
   dealTitle,
@@ -87,6 +169,7 @@ export function DealWorkspace({
   const router = useRouter();
   const [note, setNote] = useState("");
   const [savingNote, setSavingNote] = useState(false);
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [timelineFilter, setTimelineFilter] = useState<(typeof TIMELINE_FILTERS)[number]["value"]>("all");
 
   const pending = activities.filter((a) => !a.done);
@@ -246,6 +329,7 @@ export function DealWorkspace({
                         )}
                       </span>
                     </div>
+                    <ActivityEditButton activity={a} />
                   </Card>
                 </li>
               );
@@ -287,13 +371,38 @@ export function DealWorkspace({
                   <Card className={cn("min-w-0 flex-1 p-3", item.kind === "note" && "border-warning/30 bg-warning-subtle/40")}>
                     <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
                       <span className="text-sm font-medium text-foreground">{item.title}</span>
-                      <span className="numeric text-caption text-muted-foreground">
-                        {formatDue(item.at)}
-                        {item.actor ? ` · ${item.actor}` : ""}
+                      <span className="flex items-center gap-1.5">
+                        <span className="numeric text-caption text-muted-foreground">
+                          {formatDue(item.at)}
+                          {item.actor ? ` · ${item.actor}` : ""}
+                        </span>
+                        {item.noteId && editingNoteId !== item.noteId && (
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            aria-label="Editar anotação"
+                            onClick={() => setEditingNoteId(item.noteId!)}
+                          >
+                            <Pencil />
+                          </Button>
+                        )}
+                        {item.activity && <ActivityEditButton activity={item.activity} />}
                       </span>
                     </div>
-                    {item.body && (
-                      <p className="mt-1 whitespace-pre-wrap break-words text-sm text-foreground/90">{item.body}</p>
+                    {item.noteId ? (
+                      <NoteTimelineBody
+                        // remonta quando o texto muda (após salvar) para reiniciar o rascunho
+                        key={`${item.noteId}-${item.body}`}
+                        noteId={item.noteId}
+                        content={item.body ?? ""}
+                        editing={editingNoteId === item.noteId}
+                        onClose={() => setEditingNoteId(null)}
+                        onSaved={() => router.refresh()}
+                      />
+                    ) : (
+                      item.body && (
+                        <p className="mt-1 whitespace-pre-wrap break-words text-sm text-foreground/90">{item.body}</p>
+                      )
                     )}
                   </Card>
                 </li>

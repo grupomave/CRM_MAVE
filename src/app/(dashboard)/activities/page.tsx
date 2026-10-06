@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatOverdue } from "@/lib/deal-alerts";
 import { ActivitiesToolbar } from "./activities-toolbar";
 import { ActivityDoneToggle } from "./activity-done-toggle";
+import { ActivityEditButton } from "./activity-edit-button";
 import { ActivitiesCalendar } from "./activities-calendar";
 import { PageHeader } from "@/components/ui/page-header";
 import {
@@ -108,6 +109,9 @@ export default async function ActivitiesPage() {
                   <TableHead>Tipo</TableHead>
                   <TableHead>Vinculada a</TableHead>
                   <TableHead>Data/hora</TableHead>
+                  <TableHead className="w-10">
+                    <span className="sr-only">Ações</span>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -161,12 +165,15 @@ export default async function ActivitiesPage() {
                           </span>
                         )}
                       </TableCell>
+                      <TableCell>
+                        <ActivityEditButton activity={a} />
+                      </TableCell>
                     </TableRow>
                   );
                 })}
                 {activities.length === 0 && (
                   <TableRow className="hover:bg-transparent">
-                    <TableCell colSpan={5}>
+                    <TableCell colSpan={6}>
                       <EmptyState
                         icon={CalendarClock}
                         title="Nenhuma atividade cadastrada"

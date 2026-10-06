@@ -187,6 +187,7 @@ export default async function DealDetailPage({
       body: n.content,
       at: n.created_at,
       actor: n.profiles?.full_name ?? null,
+      noteId: n.id,
     })),
     ...activities
       .filter((a) => a.done)
@@ -197,6 +198,7 @@ export default async function DealDetailPage({
         body: a.subject,
         at: a.due_date ?? a.created_at,
         actor: null,
+        activity: a,
       })),
     ...stageHistory.map((h) => {
       // Nomes gravados no momento da mudança (sobrevivem a renomear/excluir)

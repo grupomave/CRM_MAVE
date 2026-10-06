@@ -56,6 +56,10 @@ export interface TimelineItem {
   body?: string | null;
   at: string;
   actor: string | null;
+  /** Anotação original (permite editar na linha do tempo) */
+  noteId?: string;
+  /** Atividade original (permite editar na linha do tempo) */
+  activity?: ActivityItem;
 }
 
 export interface DealOverview {

@@ -51,10 +51,32 @@ function toDueDate(date?: string, time?: string) {
   return new Date(y, m - 1, d, hh, mm).toISOString();
 }
 
+/** Atividade existente a editar (data/hora convertidas para o fuso do navegador). */
+export interface EditableActivity {
+  id: string;
+  type: string;
+  subject: string;
+  due_date: string | null;
+}
+
+function pad(n: number) {
+  return String(n).padStart(2, "0");
+}
+
+function fromDueDate(iso: string | null) {
+  if (!iso) return { date: "", time: "" };
+  const d = new Date(iso);
+  return {
+    date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+    time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+  };
+}
+
 export function NewActivityDialog({
   trigger,
   dealId,
   contactId,
+  activity,
   onCreated,
   open: openProp,
   onOpenChange,
@@ -62,6 +84,8 @@ export function NewActivityDialog({
   trigger?: React.ReactNode;
   dealId?: string;
   contactId?: string;
+  /** Quando informada, o diálogo edita a atividade em vez de criar uma nova. */
+  activity?: EditableActivity;
   onCreated?: () => void;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -75,11 +99,18 @@ export function NewActivityDialog({
     handleSubmit,
     control,
     reset,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { subject: "", type: "call", date: "", time: "" },
+    defaultValues: activity
+      ? {
+          subject: activity.subject,
+          type: (activity.type as FormValues["type"]) ?? "call",
+          ...fromDueDate(activity.due_date),
+        }
+      : { subject: "", type: "call", date: "", time: "" },
   });
+  const editing = !!activity;
 
   async function onSubmit(values: FormValues) {
     const supabase = createClient();
@@ -89,6 +120,30 @@ export function NewActivityDialog({
 
     if (!user) {
       toast.error("Sua sessão expirou", { description: "Entre novamente para continuar." });
+      return;
+    }
+
+    if (activity) {
+      // select() devolve as linhas afetadas: o RLS bloqueia sem erro (0 linhas)
+      const { data, error } = await supabase
+        .from("activities")
+        .update({
+          subject: values.subject,
+          type: values.type,
+          due_date: toDueDate(values.date, values.time),
+        })
+        .eq("id", activity.id)
+        .select("id");
+      if (error) {
+        toast.error("Não foi possível salvar a atividade", { description: friendlyError(error) });
+        return;
+      }
+      if (!data?.length) {
+        toast.error("Você não tem permissão para editar esta atividade");
+        return;
+      }
+      setOpen(false);
+      onCreated?.();
       return;
     }
 
@@ -117,8 +172,10 @@ export function NewActivityDialog({
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Nova atividade</DialogTitle>
-          <DialogDescription>Ligação, reunião, tarefa, e-mail ou WhatsApp.</DialogDescription>
+          <DialogTitle>{editing ? "Editar atividade" : "Nova atividade"}</DialogTitle>
+          <DialogDescription>
+            {editing ? "Altere o tipo, o assunto, a data ou o horário." : "Ligação, reunião, tarefa, e-mail ou WhatsApp."}
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
           <FormField label="Tipo" htmlFor="activity-type">
@@ -151,7 +208,7 @@ export function NewActivityDialog({
           </FormField>
 
           <FormField label="Assunto" htmlFor="activity-subject" required error={errors.subject?.message}>
-            <Input id="activity-subject" autoFocus placeholder="Ex.: Retornar sobre a proposta" {...register("subject")} />
+            <Input id="activity-subject" autoFocus={!editing} placeholder="Ex.: Retornar sobre a proposta" {...register("subject")} />
           </FormField>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_9rem]">
@@ -173,8 +230,8 @@ export function NewActivityDialog({
             <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
               Cancelar
             </Button>
-            <Button type="submit" loading={isSubmitting}>
-              Criar atividade
+            <Button type="submit" loading={isSubmitting} disabled={editing && !isDirty}>
+              {editing ? "Salvar alterações" : "Criar atividade"}
             </Button>
           </DialogFooter>
         </form>
