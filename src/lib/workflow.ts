@@ -19,51 +19,82 @@ export interface WorkflowRow {
   organization_id: string | null;
   contact_id: string | null;
   owner_id: string | null;
+  pipeline_id: string | null;
+  /** Tipo do evento, classificado no banco por workflow_event_kind() (coluna gerada) */
+  event_kind: string;
 }
 
-export type WorkflowCategory =
-  | "funil"
-  | "negocios"
-  | "atividades"
-  | "arquivos"
-  | "propostas"
-  | "anotacoes"
-  | "leads"
-  | "contatos"
-  | "config";
+export type WorkflowTone = "info" | "success" | "destructive" | "warning" | "neutral";
 
-export const WORKFLOW_CATEGORIES: { value: WorkflowCategory; label: string; tables: string[] }[] = [
-  { value: "funil", label: "Movimentações de funil", tables: ["deals"] },
-  { value: "negocios", label: "Negócios (todos os eventos)", tables: ["deals"] },
-  { value: "atividades", label: "Atividades", tables: ["activities"] },
-  { value: "arquivos", label: "Arquivos anexados", tables: ["attachments"] },
-  { value: "propostas", label: "Propostas", tables: ["proposals"] },
-  { value: "anotacoes", label: "Anotações", tables: ["notes"] },
-  { value: "leads", label: "Leads", tables: ["leads"] },
-  { value: "contatos", label: "Pessoas e organizações", tables: ["contacts", "organizations"] },
-  {
-    value: "config",
-    label: "Configurações e cadastros",
-    tables: [
-      "pipelines",
-      "pipeline_stages",
-      "lost_reasons",
-      "custom_fields",
-      "automation_rules",
-      "teams",
-      "profiles",
-      "lead_sources",
-      "segments",
-      "digest_settings",
-    ],
-  },
+export interface WorkflowKind {
+  value: string;
+  /** Rótulo no plural, usado nos filtros e nos cartões de resumo */
+  label: string;
+  group: string;
+  tone: WorkflowTone;
+}
+
+export const WORKFLOW_KIND_GROUPS = ["Negócios", "Cadastros", "Atividades", "Arquivos, propostas e anotações", "Configurações"];
+
+// Mantenha em sincronia com public.workflow_event_kind() (migration 0030).
+export const WORKFLOW_KINDS: WorkflowKind[] = [
+  { value: "deal_created", label: "Negócios novos", group: "Negócios", tone: "success" },
+  { value: "deal_moved", label: "Movimentados no funil", group: "Negócios", tone: "info" },
+  { value: "deal_won", label: "Negócios ganhos", group: "Negócios", tone: "success" },
+  { value: "deal_lost", label: "Negócios perdidos", group: "Negócios", tone: "destructive" },
+  { value: "deal_frozen", label: "Negócios congelados", group: "Negócios", tone: "info" },
+  { value: "deal_unfrozen", label: "Negócios descongelados", group: "Negócios", tone: "info" },
+  { value: "deal_reopened", label: "Negócios reabertos", group: "Negócios", tone: "warning" },
+  { value: "deal_transferred", label: "Transferidos de responsável", group: "Negócios", tone: "neutral" },
+  { value: "deal_value", label: "Valor alterado", group: "Negócios", tone: "neutral" },
+  { value: "deal_updated", label: "Outras alterações de negócio", group: "Negócios", tone: "neutral" },
+  { value: "deal_deleted", label: "Negócios excluídos", group: "Negócios", tone: "destructive" },
+  { value: "organization_created", label: "Organizações cadastradas", group: "Cadastros", tone: "success" },
+  { value: "organization_updated", label: "Organizações alteradas", group: "Cadastros", tone: "neutral" },
+  { value: "organization_deleted", label: "Organizações excluídas", group: "Cadastros", tone: "destructive" },
+  { value: "contact_created", label: "Pessoas cadastradas", group: "Cadastros", tone: "success" },
+  { value: "contact_updated", label: "Pessoas alteradas", group: "Cadastros", tone: "neutral" },
+  { value: "contact_deleted", label: "Pessoas excluídas", group: "Cadastros", tone: "destructive" },
+  { value: "lead_created", label: "Leads criados", group: "Cadastros", tone: "success" },
+  { value: "lead_converted", label: "Leads convertidos", group: "Cadastros", tone: "success" },
+  { value: "lead_updated", label: "Leads alterados", group: "Cadastros", tone: "neutral" },
+  { value: "lead_deleted", label: "Leads excluídos", group: "Cadastros", tone: "destructive" },
+  { value: "activity_created", label: "Atividades agendadas", group: "Atividades", tone: "info" },
+  { value: "activity_done", label: "Atividades concluídas", group: "Atividades", tone: "success" },
+  { value: "activity_updated", label: "Atividades alteradas", group: "Atividades", tone: "neutral" },
+  { value: "activity_deleted", label: "Atividades excluídas", group: "Atividades", tone: "destructive" },
+  { value: "attachment_created", label: "Arquivos anexados", group: "Arquivos, propostas e anotações", tone: "info" },
+  { value: "attachment_updated", label: "Arquivos alterados", group: "Arquivos, propostas e anotações", tone: "neutral" },
+  { value: "attachment_deleted", label: "Arquivos removidos", group: "Arquivos, propostas e anotações", tone: "destructive" },
+  { value: "proposal_created", label: "Propostas criadas", group: "Arquivos, propostas e anotações", tone: "info" },
+  { value: "proposal_updated", label: "Propostas alteradas", group: "Arquivos, propostas e anotações", tone: "info" },
+  { value: "proposal_deleted", label: "Propostas excluídas", group: "Arquivos, propostas e anotações", tone: "destructive" },
+  { value: "note_created", label: "Anotações adicionadas", group: "Arquivos, propostas e anotações", tone: "neutral" },
+  { value: "note_updated", label: "Anotações alteradas", group: "Arquivos, propostas e anotações", tone: "neutral" },
+  { value: "note_deleted", label: "Anotações excluídas", group: "Arquivos, propostas e anotações", tone: "destructive" },
+  { value: "config", label: "Configurações e cadastros", group: "Configurações", tone: "neutral" },
+];
+
+const KIND_BY_VALUE = new Map(WORKFLOW_KINDS.map((k) => [k.value, k]));
+export const kindLabel = (value: string) => KIND_BY_VALUE.get(value)?.label ?? value;
+
+/** Indicadores em destaque no resumo do Workflow e no Dashboard (ordem de exibição) */
+export const HEADLINE_KINDS = [
+  "deal_created",
+  "deal_moved",
+  "deal_won",
+  "deal_lost",
+  "deal_frozen",
+  "organization_created",
+  "contact_created",
+  "activity_done",
 ];
 
 export interface WorkflowEvent {
-  category: WorkflowCategory;
+  kind: string;
   /** Verbo/frase após o nome do autor (texto puro, também usado nas exportações) */
   text: string;
-  tone: "info" | "success" | "destructive" | "warning" | "neutral";
+  tone: WorkflowTone;
   /** Nome do registro principal (negócio, atividade, arquivo...) */
   subject: string | null;
   href: string | null;
@@ -118,45 +149,16 @@ function hrefFor(row: WorkflowRow): string | null {
   }
 }
 
-export function categoryOf(row: WorkflowRow): WorkflowCategory {
-  switch (row.table_name) {
-    case "deals":
-      return row.action === "update" && "stage_id" in row.changes ? "funil" : "negocios";
-    case "activities":
-      return "atividades";
-    case "attachments":
-      return "arquivos";
-    case "proposals":
-      return "propostas";
-    case "notes":
-      return "anotacoes";
-    case "leads":
-      return "leads";
-    case "contacts":
-    case "organizations":
-      return "contatos";
-    default:
-      return "config";
-  }
-}
-
 export function describeEvent(row: WorkflowRow): WorkflowEvent {
   const c = row.changes;
   const label = row.record_label ?? "";
   const quoted = label ? ` “${label}”` : "";
-  const base = { category: categoryOf(row), subject: row.record_label, href: hrefFor(row) };
+  const base = { kind: row.event_kind, subject: row.record_label, href: hrefFor(row) };
 
   switch (row.table_name) {
     case "deals": {
       if (row.action === "insert") return { ...base, tone: "success", text: `criou o negócio${quoted}` };
       if (row.action === "delete") return { ...base, tone: "destructive", text: `excluiu o negócio${quoted}` };
-      const stage = pair(c.stage_id);
-      if (stage)
-        return {
-          ...base,
-          tone: "info",
-          text: `moveu o negócio${quoted} da etapa ${str(stage.old)} para ${str(stage.new)}`,
-        };
       const status = pair(c.status);
       if (status) {
         const next = String(status.new);
@@ -170,6 +172,15 @@ export function describeEvent(row: WorkflowRow): WorkflowEvent {
           };
         return { ...base, tone: "warning", text: `reabriu o negócio${quoted}` };
       }
+      const stage = pair(c.stage_id);
+      if (stage)
+        return {
+          ...base,
+          tone: "info",
+          text: `moveu o negócio${quoted} da etapa ${str(stage.old)} para ${str(stage.new)}`,
+        };
+      const frozen = pair(c.frozen_at);
+      if (frozen) return { ...base, tone: "info", text: `${frozen.new ? "congelou" : "descongelou"} o negócio${quoted}` };
       const owner = pair(c.owner_id);
       if (owner)
         return { ...base, tone: "neutral", text: `transferiu o negócio${quoted} de ${str(owner.old)} para ${str(owner.new)}` };
@@ -180,7 +191,6 @@ export function describeEvent(row: WorkflowRow): WorkflowEvent {
           tone: "neutral",
           text: `alterou o valor do negócio${quoted} de ${formatCurrencyBRL(Number(value.old) || 0)} para ${formatCurrencyBRL(Number(value.new) || 0)}`,
         };
-      if (pair(c.frozen_at)) return { ...base, tone: "info", text: `${pair(c.frozen_at)?.new ? "congelou" : "descongelou"} o negócio${quoted}` };
       break;
     }
     case "activities": {

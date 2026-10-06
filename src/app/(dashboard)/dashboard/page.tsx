@@ -18,12 +18,32 @@ import {
   UserPlus,
   UserMinus,
   PlusCircle,
+  Snowflake,
+  ArrowRightLeft,
+  Building2,
+  Users,
+  Workflow as WorkflowIcon,
+  XCircle,
 } from "lucide-react";
 import { monthKey, monthLabel, monthRange } from "@/lib/date-range";
 import { StageFunnelChart, MonthlyTrendChart } from "@/app/(dashboard)/reports/reports-charts";
 import { change, closedAt, dashboardQuery, loadDashboardData, STALLED_DAYS } from "@/lib/data/dashboard";
 import { formatOverdue } from "@/lib/deal-alerts";
+import { HEADLINE_KINDS, kindLabel } from "@/lib/workflow";
+import { loadWorkflowSummary, type WorkflowSummary } from "@/lib/workflow-summary";
 import { DashboardFilters } from "./dashboard-filters";
+
+// Ícone de cada indicador de movimentação (mesmos tipos do Workflow)
+const MOVEMENT_ICONS: Record<string, typeof Handshake> = {
+  deal_created: PlusCircle,
+  deal_moved: ArrowRightLeft,
+  deal_won: Trophy,
+  deal_lost: XCircle,
+  deal_frozen: Snowflake,
+  organization_created: Building2,
+  contact_created: Users,
+  activity_done: CalendarCheck,
+};
 
 export const metadata = { title: "Dashboard" };
 
@@ -58,6 +78,22 @@ export default async function DashboardPage({
   // Cada card abre /dashboard/detalhe/<indicador> com o mesmo funil e período
   const detail = (kpi: string, extra: Record<string, string> = {}) =>
     `/dashboard/detalhe/${kpi}?${dashboardQuery(data, extra)}`;
+
+  // Movimentação dos negócios (log de auditoria): só admin/gestor leem o log. Se o resumo
+  // falhar, o restante do Dashboard continua funcionando.
+  let movement: WorkflowSummary | null = null;
+  if (!isVendedor) {
+    try {
+      movement = await loadWorkflowSummary(supabase, { from: fromParam, to: toParam, pipeline: pipelineId });
+    } catch {
+      movement = null;
+    }
+  }
+  const workflowLink = (extra: Record<string, string> = {}) => {
+    const q = new URLSearchParams({ from: fromParam, to: toParam, ...extra });
+    if (pipelineId) q.set("pipeline", pipelineId);
+    return `/workflow?${q.toString()}`;
+  };
 
   const stalledPreview = stalledAll.slice(0, 6);
 
@@ -188,6 +224,33 @@ export default async function DashboardPage({
           />
         </div>
       </section>
+
+      {movement && (
+        <section aria-label="Movimentação dos negócios" className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-subtitle text-foreground">
+              Movimentação no período{" "}
+              <span className="numeric text-sm font-normal text-muted-foreground">{periodLabel}</span>
+            </h2>
+            <Link href={workflowLink()} className="inline-flex items-center gap-1 text-caption font-medium text-primary hover:underline">
+              <WorkflowIcon className="size-3.5" aria-hidden />
+              Detalhar por responsável, organização e contato no Workflow
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {HEADLINE_KINDS.map((kind) => (
+              <KpiCard
+                key={kind}
+                label={kindLabel(kind)}
+                icon={MOVEMENT_ICONS[kind]}
+                value={String(movement.kinds[kind] ?? 0)}
+                hint="eventos registrados"
+                href={workflowLink({ kinds: kind })}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <StageFunnelChart data={funnelData} />

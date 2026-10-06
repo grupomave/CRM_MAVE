@@ -170,6 +170,9 @@ export interface Database {
           organization_id: string | null;
           contact_id: string | null;
           owner_id: string | null;
+          pipeline_id: string | null;
+          /** Coluna gerada: public.workflow_event_kind(table_name, action, changes) */
+          event_kind: string;
         };
         // Gravado por gatilhos e pelas server actions de usuários (service role)
         Insert: Partial<Database["public"]["Tables"]["audit_logs"]["Row"]>;
@@ -535,6 +538,21 @@ export interface Database {
       delete_stage_with_reassign: {
         Args: { p_stage_id: string; p_target_stage_id?: string | null };
         Returns: { deals: number; automations_disabled: number };
+      };
+      workflow_summary: {
+        Args: {
+          p_from: string;
+          p_to: string;
+          p_actor?: string | null;
+          p_owner?: string | null;
+          p_org?: string | null;
+          p_deal?: string | null;
+          p_contact?: string | null;
+          p_pipeline?: string | null;
+          p_kinds?: string[] | null;
+          p_search?: string | null;
+        };
+        Returns: { dimension: "kind" | "owner" | "pipeline"; key: string | null; total: number }[];
       };
       move_deals_to_pipeline: {
         Args: { p_deal_ids: string[]; p_target_stage_id: string };
