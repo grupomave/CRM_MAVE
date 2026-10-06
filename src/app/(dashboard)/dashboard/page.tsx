@@ -81,14 +81,21 @@ export default async function DashboardPage({
 
   // Movimentação dos negócios (log de auditoria): só admin/gestor leem o log. Se o resumo
   // falhar, o restante do Dashboard continua funcionando.
+  // Negócios e atividades seguem o funil selecionado; cadastros (organizações e pessoas) não
+  // pertencem a funil e contam a empresa toda.
   let movement: WorkflowSummary | null = null;
+  let movementCompany: WorkflowSummary | null = null;
   if (!isVendedor) {
     try {
-      movement = await loadWorkflowSummary(supabase, { from: fromParam, to: toParam, pipeline: pipelineId });
+      [movement, movementCompany] = await Promise.all([
+        loadWorkflowSummary(supabase, { from: fromParam, to: toParam, pipeline: pipelineId }),
+        loadWorkflowSummary(supabase, { from: fromParam, to: toParam }),
+      ]);
     } catch {
       movement = null;
     }
   }
+  const COMPANY_WIDE = new Set(["organization_created", "contact_created"]);
   const workflowLink = (extra: Record<string, string> = {}) => {
     const q = new URLSearchParams({ from: fromParam, to: toParam, ...extra });
     if (pipelineId) q.set("pipeline", pipelineId);
@@ -243,9 +250,13 @@ export default async function DashboardPage({
                 key={kind}
                 label={kindLabel(kind)}
                 icon={MOVEMENT_ICONS[kind]}
-                value={String(movement.kinds[kind] ?? 0)}
-                hint="eventos registrados"
-                href={workflowLink({ kinds: kind })}
+                value={String((COMPANY_WIDE.has(kind) ? movementCompany : movement)?.kinds[kind] ?? 0)}
+                hint={COMPANY_WIDE.has(kind) ? "em toda a empresa" : "no funil selecionado"}
+                href={
+                  COMPANY_WIDE.has(kind)
+                    ? `/workflow?${new URLSearchParams({ from: fromParam, to: toParam, kinds: kind }).toString()}`
+                    : workflowLink({ kinds: kind })
+                }
               />
             ))}
           </div>
