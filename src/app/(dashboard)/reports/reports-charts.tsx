@@ -63,13 +63,12 @@ export function StatTile({
 
 export function StageFunnelChart({
   data,
-  hrefForStage,
 }: {
-  data: { stage: string; total: number; id?: string }[];
-  /** Quando informado, clicar numa barra abre a lista dos negócios da etapa */
-  hrefForStage?: (stageId: string) => string;
+  /** Com `href` no item, clicar na barra abre a lista dos negócios da etapa */
+  data: { stage: string; total: number; id?: string; href?: string }[];
 }) {
   const router = useRouter();
+  const clickable = data.some((d) => d.href);
   const height = Math.max(288, data.length * 36);
   return (
     <Card>
@@ -87,10 +86,10 @@ export function StageFunnelChart({
               dataKey="total"
               fill={PRIMARY}
               radius={[0, 4, 4, 0]}
-              cursor={hrefForStage ? "pointer" : undefined}
+              cursor={clickable ? "pointer" : undefined}
               onClick={(entry) => {
-                const id = (entry as unknown as { payload?: { id?: string } }).payload?.id;
-                if (hrefForStage && id) router.push(hrefForStage(id));
+                const href = (entry as unknown as { payload?: { href?: string } }).payload?.href;
+                if (href) router.push(href);
               }}
             />
           </BarChart>
@@ -102,13 +101,12 @@ export function StageFunnelChart({
 
 export function MonthlyTrendChart({
   data,
-  hrefForMonth,
 }: {
-  data: { month: string; criados: number; ganhos: number; perdidos: number; key?: string }[];
-  /** Quando informado, clicar num mês abre os negócios criados, ganhos e perdidos nele */
-  hrefForMonth?: (monthKey: string) => string;
+  /** Com `href` no item, clicar no mês abre os negócios criados, ganhos e perdidos nele */
+  data: { month: string; criados: number; ganhos: number; perdidos: number; key?: string; href?: string }[];
 }) {
   const router = useRouter();
+  const clickable = data.some((d) => d.href);
   return (
     <Card>
       <CardHeader>
@@ -118,11 +116,11 @@ export function MonthlyTrendChart({
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
             data={data}
-            style={hrefForMonth ? { cursor: "pointer" } : undefined}
+            style={clickable ? { cursor: "pointer" } : undefined}
             onClick={(state) => {
               const idx = Number((state as { activeTooltipIndex?: number | string } | undefined)?.activeTooltipIndex);
-              const key = Number.isFinite(idx) ? data[idx]?.key : undefined;
-              if (hrefForMonth && key) router.push(hrefForMonth(key));
+              const href = Number.isFinite(idx) ? data[idx]?.href : undefined;
+              if (href) router.push(href);
             }}
           >
             <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" vertical={false} />

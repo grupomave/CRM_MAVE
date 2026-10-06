@@ -65,6 +65,7 @@ export default async function DashboardPage({
     id: s.id,
     stage: s.name,
     total: openDeals.filter((d) => d.stage_id === s.id).reduce((sum, d) => sum + d.value, 0),
+    href: detail("etapa", { stage: s.id }),
   }));
 
   const months = monthRange(fromParam, toParam);
@@ -74,6 +75,7 @@ export default async function DashboardPage({
     criados: current.created.filter((d) => monthKey(d.created_at) === m).length,
     ganhos: current.won.filter((d) => monthKey(closedAt(d)) === m).length,
     perdidos: current.lost.filter((d) => monthKey(closedAt(d)) === m).length,
+    href: detail("mes", { month: m }),
   }));
 
   const periodLabel = `${formatDate(`${fromParam}T12:00:00`)} – ${formatDate(`${toParam}T12:00:00`)}`;
@@ -188,8 +190,8 @@ export default async function DashboardPage({
       </section>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <StageFunnelChart data={funnelData} hrefForStage={(id) => detail("etapa", { stage: id })} />
-        <MonthlyTrendChart data={monthlyData} hrefForMonth={(key) => detail("mes", { month: key })} />
+        <StageFunnelChart data={funnelData} />
+        <MonthlyTrendChart data={monthlyData} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
