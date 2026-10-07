@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatOverdue } from "@/lib/deal-alerts";
 import { ActivitiesToolbar } from "./activities-toolbar";
 import { ActivityDoneToggle } from "./activity-done-toggle";
+import { DeleteRecordButton } from "@/components/delete-record-button";
 import { ActivityEditButton } from "./activity-edit-button";
 import { ActivitiesCalendar } from "./activities-calendar";
 import { PageHeader } from "@/components/ui/page-header";
@@ -166,7 +167,16 @@ export default async function ActivitiesPage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <ActivityEditButton activity={a} />
+                        <div className="flex items-center gap-1">
+                          <ActivityEditButton activity={a} />
+                          <DeleteRecordButton
+                            table="activities"
+                            id={a.id}
+                            label={`Excluir atividade "${a.subject}"`}
+                            title="Excluir atividade?"
+                            successMessage="Atividade excluída"
+                          />
+                        </div>
                       </TableCell>
                     </TableRow>
                   );

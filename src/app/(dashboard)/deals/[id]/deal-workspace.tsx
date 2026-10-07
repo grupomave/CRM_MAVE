@@ -30,6 +30,7 @@ import { NewActivityDialog } from "@/components/forms/new-activity-dialog";
 import { EntityFilesTab, type EntityAttachment } from "@/components/entity-files-tab";
 import { ActivityDoneToggle } from "@/app/(dashboard)/activities/activity-done-toggle";
 import { ActivityEditButton } from "@/app/(dashboard)/activities/activity-edit-button";
+import { DeleteRecordButton } from "@/components/delete-record-button";
 import { createClient } from "@/lib/supabase/client";
 import { friendlyError, toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
@@ -330,6 +331,13 @@ export function DealWorkspace({
                       </span>
                     </div>
                     <ActivityEditButton activity={a} />
+                    <DeleteRecordButton
+                      table="activities"
+                      id={a.id}
+                      label={`Excluir atividade "${a.subject}"`}
+                      title="Excluir atividade?"
+                      successMessage="Atividade excluída"
+                    />
                   </Card>
                 </li>
               );
@@ -387,6 +395,24 @@ export function DealWorkspace({
                           </Button>
                         )}
                         {item.activity && <ActivityEditButton activity={item.activity} />}
+                        {item.noteId && editingNoteId !== item.noteId && (
+                          <DeleteRecordButton
+                            table="notes"
+                            id={item.noteId}
+                            label="Excluir anotação"
+                            title="Excluir anotação?"
+                            successMessage="Anotação excluída"
+                          />
+                        )}
+                        {item.activity && (
+                          <DeleteRecordButton
+                            table="activities"
+                            id={item.activity.id}
+                            label={`Excluir atividade "${item.activity.subject}"`}
+                            title="Excluir atividade?"
+                            successMessage="Atividade excluída"
+                          />
+                        )}
                       </span>
                     </div>
                     {item.noteId ? (

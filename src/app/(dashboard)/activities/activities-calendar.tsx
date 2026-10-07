@@ -18,6 +18,7 @@ import { ptBR } from "date-fns/locale";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { DeleteRecordButton } from "@/components/delete-record-button";
 import { ActivityEditButton } from "./activity-edit-button";
 
 export interface CalendarActivity {
@@ -110,7 +111,7 @@ export function ActivitiesCalendar({ activities }: { activities: CalendarActivit
                   const content = (
                     <span
                       className={cn(
-                        "block truncate rounded py-0.5 pl-1 pr-5 text-micro",
+                        "block truncate rounded py-0.5 pl-1 pr-10 text-micro",
                         a.done
                           ? "bg-muted text-muted-foreground line-through"
                           : overdue
@@ -135,6 +136,15 @@ export function ActivitiesCalendar({ activities }: { activities: CalendarActivit
                         compact
                         // aparece ao passar o mouse/focar; sempre visível em telas de toque
                         className="absolute right-0.5 top-1/2 -translate-y-1/2 opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100"
+                      />
+                      <DeleteRecordButton
+                        table="activities"
+                        id={a.id}
+                        compact
+                        label={`Excluir atividade "${a.subject}"`}
+                        title="Excluir atividade?"
+                        successMessage="Atividade excluída"
+                        className="absolute right-5 top-1/2 -translate-y-1/2 opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100"
                       />
                     </div>
                   );
