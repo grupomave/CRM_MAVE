@@ -53,7 +53,7 @@ export function KpiCard({
   const card = (
     <Card
       className={cn(
-        "flex h-full flex-col gap-3 p-5",
+        "@container flex h-full flex-col gap-3 p-5",
         href && "transition-colors group-hover:border-primary/50 group-hover:shadow-md",
       )}
     >
@@ -72,7 +72,15 @@ export function KpiCard({
           </span>
         )}
       </div>
-      <p className="numeric text-display text-foreground">{value}</p>
+      <p
+        className={cn(
+          "numeric min-w-0 break-words text-foreground",
+          // valores longos (ex.: R$ 2.551.432,04) encolhem para caber no card
+          value.length > 11 ? "text-subtitle @[15rem]:text-title" : "text-display",
+        )}
+      >
+        {value}
+      </p>
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-caption">
         {delta && (
           <span
