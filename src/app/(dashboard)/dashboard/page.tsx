@@ -30,7 +30,6 @@ import { StageFunnelChart, MonthlyTrendChart } from "@/app/(dashboard)/reports/r
 import { change, closedAt, dashboardQuery, loadDashboardData, STALLED_DAYS } from "@/lib/data/dashboard";
 import { formatOverdue } from "@/lib/deal-alerts";
 import { HEADLINE_KINDS, kindLabel } from "@/lib/workflow";
-import { loadWorkflowSummary, type WorkflowSummary } from "@/lib/workflow-summary";
 import { DashboardFilters } from "./dashboard-filters";
 
 // Ícone de cada indicador de movimentação (mesmos tipos do Workflow)
@@ -53,10 +52,12 @@ export default async function DashboardPage({
   searchParams: Promise<{ pipeline?: string; from?: string; to?: string }>;
 }) {
   const supabase = await createClient();
-  const data = await loadDashboardData(supabase, await searchParams);
+  const data = await loadDashboardData(supabase, await searchParams, { withMovement: true });
   const {
-    isVendedor,
     firstName,
+    isVendedor,
+    movement,
+    movementCompany,
     pipelines,
     pipelineId,
     stages,
@@ -79,22 +80,8 @@ export default async function DashboardPage({
   const detail = (kpi: string, extra: Record<string, string> = {}) =>
     `/dashboard/detalhe/${kpi}?${dashboardQuery(data, extra)}`;
 
-  // Movimentação dos negócios (log de auditoria): só admin/gestor leem o log. Se o resumo
-  // falhar, o restante do Dashboard continua funcionando.
-  // Negócios e atividades seguem o funil selecionado; cadastros (organizações e pessoas) não
-  // pertencem a funil e contam a empresa toda.
-  let movement: WorkflowSummary | null = null;
-  let movementCompany: WorkflowSummary | null = null;
-  if (!isVendedor) {
-    try {
-      [movement, movementCompany] = await Promise.all([
-        loadWorkflowSummary(supabase, { from: fromParam, to: toParam, pipeline: pipelineId }),
-        loadWorkflowSummary(supabase, { from: fromParam, to: toParam }),
-      ]);
-    } catch {
-      movement = null;
-    }
-  }
+  // Movimentação (carregada junto com o resto em loadDashboardData): negócios e atividades
+  // seguem o funil selecionado; cadastros (organizações e pessoas) contam a empresa toda.
   const COMPANY_WIDE = new Set(["organization_created", "contact_created"]);
   const workflowLink = (extra: Record<string, string> = {}) => {
     const q = new URLSearchParams({ from: fromParam, to: toParam, ...extra });

@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { defaultTwelveMonthRange, saoPauloDayBounds } from "@/lib/date-range";
 import { isoDaysAgo } from "@/lib/utils";
+import { loadWorkflowSummary, type WorkflowSummary } from "@/lib/workflow-summary";
 
 // Dados do Dashboard. A página inicial e as telas de detalhe dos cards
 // (/dashboard/detalhe/[kpi]) usam este MESMO carregador, então o número do card
@@ -68,16 +69,24 @@ export interface DashboardOrg {
   deal: DashboardDeal;
 }
 
-export async function loadDashboardData(supabase: Supabase, params: DashboardParams) {
+export async function loadDashboardData(
+  supabase: Supabase,
+  params: DashboardParams,
+  options: { withMovement?: boolean } = {},
+) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: myProfile } = await supabase
-    .from("profiles")
-    .select("role, full_name")
-    .eq("id", user?.id ?? "")
-    .single();
+  // Perfil e funis não dependem um do outro: buscados juntos (menos uma ida ao banco)
+  const [{ data: myProfile }, { data: pipelines }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("role, full_name")
+      .eq("id", user?.id ?? "")
+      .single(),
+    supabase.from("pipelines").select("id, name, is_default").order("name"),
+  ]);
 
   // Vendedor só enxerga os próprios negócios; gestor e admin têm visão da equipe
   const isVendedor = myProfile?.role === "vendedor";
@@ -87,7 +96,6 @@ export async function loadDashboardData(supabase: Supabase, params: DashboardPar
   const today = new Date();
   const { start: todayStart, end: todayEnd } = saoPauloDayBounds(today);
 
-  const { data: pipelines } = await supabase.from("pipelines").select("id, name, is_default").order("name");
   const selectedPipeline =
     (params.pipeline && pipelines?.find((p) => p.id === params.pipeline)) ||
     pipelines?.find((p) => p.is_default) ||
@@ -143,7 +151,26 @@ export async function loadDashboardData(supabase: Supabase, params: DashboardPar
     owner_name: a.profiles?.full_name ?? null,
   });
 
-  const [rawDeals, todayRes, overdueRaw] = await Promise.all([
+  const stagesQuery = pipelineId
+    ? supabase
+        .from("pipeline_stages")
+        .select("id, name, order_index")
+        .eq("pipeline_id", pipelineId)
+        .order("order_index")
+    : Promise.resolve({ data: [] as { id: string; name: string; order_index: number }[] });
+
+  // Movimentação (log de auditoria): só admin/gestor leem. Roda junto com o resto; se falhar,
+  // o Dashboard continua funcionando sem o bloco. Cadastros (organizações e pessoas) não
+  // pertencem a funil e contam a empresa toda.
+  const movementPromise: Promise<[WorkflowSummary, WorkflowSummary] | null> =
+    options.withMovement && !isVendedor
+      ? Promise.all([
+          loadWorkflowSummary(supabase, { from: fromParam, to: toParam, pipeline: pipelineId }),
+          loadWorkflowSummary(supabase, { from: fromParam, to: toParam }),
+        ]).catch(() => null)
+      : Promise.resolve(null);
+
+  const [rawDeals, todayRes, overdueRaw, { data: stages }, movementPair] = await Promise.all([
     fetchAllRows<RawDeal>(
       (f, t) => dealsQuery.range(f, t) as unknown as PromiseLike<{ data: RawDeal[] | null; error: unknown }>,
     ),
@@ -159,6 +186,8 @@ export async function loadDashboardData(supabase: Supabase, params: DashboardPar
       if (isVendedor && user) q = q.eq("owner_id", user.id);
       return q as unknown as PromiseLike<{ data: RawActivity[] | null; error: unknown }>;
     }),
+    stagesQuery,
+    movementPromise,
   ]);
 
   const allDeals: DashboardDeal[] = rawDeals.map(({ organizations, profiles, ...d }) => ({
@@ -169,14 +198,6 @@ export async function loadDashboardData(supabase: Supabase, params: DashboardPar
   }));
   const todayActivities = ((todayRes.data ?? []) as unknown as RawActivity[]).map(toActivity);
   const overdueActivities = overdueRaw.map(toActivity);
-
-  const { data: stages } = pipelineId
-    ? await supabase
-        .from("pipeline_stages")
-        .select("id, name, order_index")
-        .eq("pipeline_id", pipelineId)
-        .order("order_index")
-    : { data: [] };
 
   // --- Pipeline (negócios abertos) — retrato de agora ---
   const openDeals = allDeals.filter((d) => d.status === "open");
@@ -268,6 +289,8 @@ export async function loadDashboardData(supabase: Supabase, params: DashboardPar
     lostCustomersPrevCount,
     todayActivities,
     overdueActivities,
+    movement: movementPair?.[0] ?? null,
+    movementCompany: movementPair?.[1] ?? null,
   };
 }
 
