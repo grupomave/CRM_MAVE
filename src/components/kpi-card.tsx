@@ -73,11 +73,11 @@ export function KpiCard({
         )}
       </div>
       <p
-        className={cn(
-          "numeric min-w-0 break-words text-foreground",
-          // valores longos (ex.: R$ 2.551.432,04) encolhem para caber no card
-          value.length > 11 ? "text-subtitle @[15rem]:text-title" : "text-display",
-        )}
+        className="numeric min-w-0 break-words text-display text-foreground"
+        // O valor encolhe conforme a largura do card (container query: 100cqw = largura do Card)
+        // e o tamanho do texto: nunca passa de text-display (1,75rem) nem fica menor que 0,875rem.
+        // 2,5rem = padding horizontal (p-5); 0,65 = largura média de um dígito tabular por 1em.
+        style={{ fontSize: `clamp(0.875rem, calc((100cqw - 2.5rem) / ${(value.length * 0.65).toFixed(2)}), 1.75rem)` }}
       >
         {value}
       </p>
