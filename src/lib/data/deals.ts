@@ -61,17 +61,21 @@ export async function loadPipelineData(
       .select("id, name, order_index, pipeline_id, rotting_days")
       .eq("pipeline_id", pipeline.id)
       .order("order_index"),
-    fetchAllRows<RawDealRow>((from, to) =>
-      supabase
-        .from("deals")
-        .select(
-          `id, title, value, stage_id, owner_id, source, status, expected_close_date, created_at, updated_at, closed_at, last_activity_at,
+    fetchAllRows<RawDealRow>(
+      (from, to) =>
+        supabase
+          .from("deals")
+          .select(
+            `id, title, value, stage_id, owner_id, source, status, expected_close_date, created_at, updated_at, closed_at, last_activity_at,
            organizations ( name ),
            contacts ( name ),
            profiles!deals_owner_id_fkey ( full_name )`,
-        )
-        .eq("pipeline_id", pipeline.id)
-        .range(from, to) as unknown as PromiseLike<{ data: RawDealRow[] | null; error: unknown }>,
+          )
+          .eq("pipeline_id", pipeline.id)
+          // order("id"): paginação estável quando as páginas são buscadas em paralelo
+          .order("id")
+          .range(from, to) as unknown as PromiseLike<{ data: RawDealRow[] | null; error: unknown }>,
+      { firstWave: 3 }, // o funil já passa de 2.000 negócios: 3 páginas de uma vez
     ),
     // Próximas atividades pendentes dos negócios deste funil. Filtra pelo
     // funil via join (deals!inner) em vez de .in("deal_id", [...]): com 2 mil
