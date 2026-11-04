@@ -139,7 +139,14 @@ export default async function DashboardPage({
         }
       />
 
-      <section aria-label="Agora" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <section aria-label="Situação atual" className="flex flex-col gap-3">
+        <h2 className="text-subtitle text-foreground">
+          Situação atual{" "}
+          <span className="text-sm font-normal text-muted-foreground">
+            retrato de agora, não muda com o período
+          </span>
+        </h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <KpiCard
           label="Pipeline em aberto"
           icon={Handshake}
@@ -179,6 +186,7 @@ export default async function DashboardPage({
           hint={`sem atualização há ${STALLED_DAYS}+ dias`}
           href={detail("parados")}
         />
+        </div>
       </section>
 
       <section aria-label="Período selecionado" className="flex flex-col gap-3">
