@@ -172,7 +172,9 @@ export async function loadDashboardData(
 
   const [rawDeals, todayRes, overdueRaw, { data: stages }, movementPair] = await Promise.all([
     fetchAllRows<RawDeal>(
-      (f, t) => dealsQuery.range(f, t) as unknown as PromiseLike<{ data: RawDeal[] | null; error: unknown }>,
+      // order("id") mantém a paginação estável (sem ordem, páginas paralelas podem repetir/pular linhas)
+      (f, t) => dealsQuery.order("id").range(f, t) as unknown as PromiseLike<{ data: RawDeal[] | null; error: unknown }>,
+      { firstWave: 3 }, // a tabela já passa de 2.000 negócios: 3 páginas de uma vez
     ),
     todayActivitiesQuery,
     fetchAllRows<RawActivity>((f, t) => {
